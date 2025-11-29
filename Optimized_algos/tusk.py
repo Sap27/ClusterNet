@@ -141,14 +141,18 @@ def tusk_clustering(input_data, k_components=20, is_directed=False):
     
     # --- 1. INPUT HANDLING ---
     if isinstance(input_data, str):
-        # Assume standard edge list format
+        # Determine correct graph type
+        create_using = nx.DiGraph() if is_directed else nx.Graph()
+        
         try:
-            create_using = nx.DiGraph() if is_directed else nx.Graph()
+            # Attempt 1: Try reading as Weighted (3 columns)
             G = nx.read_edgelist(input_data, create_using=create_using, nodetype=str, data=(('weight', float),))
         except TypeError:
-            # Fallback if weights aren't present
+            # Attempt 2: Fallback to Unweighted (2 columns)
+            # We must re-instantiate create_using to ensure clean state
             create_using = nx.DiGraph() if is_directed else nx.Graph()
             G = nx.read_edgelist(input_data, create_using=create_using, nodetype=str)
+            
     elif isinstance(input_data, (nx.Graph, nx.DiGraph)):
         G = input_data
     else:
@@ -164,7 +168,7 @@ def tusk_clustering(input_data, k_components=20, is_directed=False):
     adj_matrix = nx.to_numpy_array(G, nodelist=node_list)
     
     # Handle unconnected graphs by processing components separately
-    # (We use igraph here just for efficient component separation)
+    # (We use igraph here just for efficient component separation logic)
     mode = ig.ADJ_DIRECTED if is_directed else ig.ADJ_UNDIRECTED
     ig_G = ig.Graph.Adjacency(adj_matrix.tolist(), mode=mode)
     components = ig_G.components(mode="weak")
