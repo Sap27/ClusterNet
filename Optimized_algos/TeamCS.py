@@ -318,24 +318,7 @@ if __name__ == "__main__":
     
     # --- Create a dummy network file for testing ---
     network_file = "network.dat"
-    # print(f"Creating dummy file: {network_file}")
-    # with open(network_file, 'w') as f:
-    #     # A large cluster (0-199)
-    #     for i in range(200):
-    #         for j in range(i + 1, 200):
-    #             if np.random.rand() < 0.05: # Sparse connections
-    #                 f.write(f"{i} {j} {np.random.rand() + 1.0}\n")
-    #     # A second cluster (200-300)
-    #     for i in range(200, 301):
-    #         for j in range(i + 1, 301):
-    #             if np.random.rand() < 0.2: # Denser connections
-    #                 f.write(f"{i} {j} {np.random.rand() + 1.0}\n")
-    #     # Bridge nodes
-    #     f.write(f"50 250 {np.random.rand()}\n")
-    #     f.write(f"51 251 {np.random.rand()}\n")
-    # # --- End of dummy file creation ---
-
-
+    
     output_file = "modules_optimized.txt"
 
     # --- How to control parallelism ---
