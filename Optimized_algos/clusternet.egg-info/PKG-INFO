@@ -24,6 +24,10 @@ Requires-Dist: scikit-learn>=1.0.0
 Requires-Dist: infomap>=2.0.0
 Requires-Dist: joblib>=1.0.0
 Requires-Dist: igraph
+Requires-Dist: cdlib>=0.4.0
+Requires-Dist: python-louvain>=0.15
+Requires-Dist: leidenalg>=0.8.0
+Requires-Dist: wurlitzer>=3.0.0
 Provides-Extra: gpu
 Requires-Dist: cupy-cuda11x>=10.0.0; extra == "gpu"
 Requires-Dist: cudf-cu11>=22.0.0; extra == "gpu"

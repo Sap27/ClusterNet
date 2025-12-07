@@ -56,6 +56,12 @@ try:
 except ImportError as e:
     print(f"Warning: Could not load CSBIO-IITM2: {e}")
 
+# Import cdlib wrappers
+try:
+    from clusternet.algorithms.cdlib_wrappers import *
+except ImportError as e:
+    print(f"Warning: Could not load cdlib wrappers: {e}")
+
 __all__ = [
     'BaseAlgorithm',
     'LouvainWrapper',

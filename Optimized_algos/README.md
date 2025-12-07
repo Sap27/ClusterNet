@@ -5,11 +5,13 @@ ClusterNet is a comprehensive Python package for community detection in graphs. 
 ## 🚀 Features
 
 - **Unified API**: Single interface for all algorithms
-- **Multiple Algorithms**: 8+ state-of-the-art community detection algorithms
+- **Multiple Algorithms**: 23+ state-of-the-art community detection algorithms
+- **Algorithm Diversity**: Statistical, physics-based, diffusion, structural, and overlapping methods
 - **Graph Flexibility**: Handles directed/undirected, weighted/unweighted graphs
 - **Easy to Use**: Simple Python API and command-line interface
 - **Comprehensive Metrics**: Built-in evaluation metrics (NMI, AMI, ARI, Modularity, etc.)
 - **Production Ready**: Well-tested, documented, and optimized
+- **CDlib Integration**: Access to 70+ algorithms from the cdlib library
 
 ## 📦 Installation
 
@@ -17,11 +19,20 @@ ClusterNet is a comprehensive Python package for community detection in graphs. 
 # Clone the repository
 cd Optimized_algos
 
+# Install core dependencies
+pip install -r requirements-clusternet.txt
+
 # Install the package
 pip install -e .
 
 # Or install with all dependencies
 pip install -e ".[all]"
+
+# Optional: Install graph-tool for SBM algorithms (requires conda)
+conda install -c conda-forge graph-tool
+
+# Optional: Install angel-cd for Angel algorithm
+pip install angel-cd
 ```
 
 ## 🎯 Quick Start
@@ -51,6 +62,26 @@ clusternet network.dat louvain --output communities.txt
 # Run Leiden with custom parameters
 clusternet network.dat leiden --resolution 1.5 --output output.txt
 
+# Run statistical algorithms
+clusternet network.dat sbm --output communities.txt
+clusternet network.dat em --k 5
+
+# Run physics-based algorithms
+clusternet network.dat cpm --resolution_parameter 1.0
+clusternet network.dat rb_pots --resolution_parameter 1.5
+
+# Run diffusion algorithms
+clusternet network.dat der --walk_len 3
+clusternet network.dat async_fluid --k 5
+
+# Run structural algorithms
+clusternet network.dat scan --epsilon 0.5 --mu 3
+clusternet network.dat agdl --number_communities 5 --kc 3
+
+# Run overlapping algorithms
+clusternet network.dat angel --threshold 0.25 --min_community_size 3
+clusternet network.dat surprise_communities
+
 # List all available algorithms
 clusternet --list-algorithms
 
@@ -59,6 +90,8 @@ clusternet network.dat louvain --evaluate
 ```
 
 ## 🧩 Available Algorithms
+
+### Core Algorithms (9)
 
 | Algorithm | Type | Directed | Weighted | Best For |
 |-----------|------|----------|----------|----------|
@@ -71,6 +104,41 @@ clusternet network.dat louvain --evaluate
 | **SimNet** | Spectral | ✗ | ✓ | Noisy networks |
 | **Tusk** | Hybrid | ✗ | ✓ | Complex networks |
 | **BiGS2** | Hybrid | ✗ | ✓ | Multi-level communities |
+
+### CDlib-Integrated Algorithms (14)
+
+#### Statistical Inference (3)
+| Algorithm | Type | Directed | Weighted | Best For |
+|-----------|------|----------|----------|----------|
+| **EM** | Statistical | ✗ | ✗ | Model-based clustering |
+| **SBM** | Statistical | ✓ | ✓ | Stochastic block models |
+| **Nested SBM** | Statistical | ✓ | ✓ | Hierarchical structure inference |
+
+#### Physics-Based (3)
+| Algorithm | Type | Directed | Weighted | Best For |
+|-----------|------|----------|----------|----------|
+| **CPM** | Physics | ✓ | ✓ | Resolution-based partitioning |
+| **RB Potts** | Physics | ✓ | ✓ | Energy minimization |
+| **RBER Potts** | Physics | ✗ | ✓ | ER null model |
+
+#### Diffusion-Based (2)
+| Algorithm | Type | Directed | Weighted | Best For |
+|-----------|------|----------|----------|----------|
+| **DER** | Diffusion | ✗ | ✓ | Entropy-based detection |
+| **Async Fluid** | Diffusion | ✗ | ✗ | Fast, scalable networks |
+
+#### Structural (3)
+| Algorithm | Type | Directed | Weighted | Best For |
+|-----------|------|----------|----------|----------|
+| **SCAN** | Structural | ✗ | ✗ | Density-based clustering |
+| **AGDL** | Structural | ✗ | ✓ | High-dimensional data |
+| **GDMP2** | Structural | ✗ | ✓ | Graph decomposition |
+
+#### Overlapping (2)
+| Algorithm | Type | Directed | Weighted | Best For |
+|-----------|------|----------|----------|----------|
+| **Angel** | Overlapping | ✗ | ✗ | Node-centric, fast |
+| **Surprise** | Overlapping | ✗ | ✓ | Quality function optimization |
 
 ## 📖 Usage Examples
 
@@ -209,17 +277,136 @@ detector = CommunityDetector(
 )
 ```
 
+### Statistical Algorithms
+
+#### EM
+```python
+detector = CommunityDetector(
+    algorithm='em',
+    k=5  # Number of communities
+)
+```
+
+#### SBM (Stochastic Block Model)
+```python
+detector = CommunityDetector(
+    algorithm='sbm'  # Auto-detects number of communities
+)
+```
+
+#### Nested SBM
+```python
+detector = CommunityDetector(
+    algorithm='sbm_nested'  # Hierarchical structure
+)
+```
+
+### Physics-Based Algorithms
+
+#### CPM (Constant Potts Model)
+```python
+detector = CommunityDetector(
+    algorithm='cpm',
+    resolution_parameter=1.0
+)
+```
+
+#### RB Potts
+```python
+detector = CommunityDetector(
+    algorithm='rb_pots',
+    resolution_parameter=1.0,
+    weights=None  # Use edge weights if present
+)
+```
+
+#### RBER Potts
+```python
+detector = CommunityDetector(
+    algorithm='rber_pots',
+    resolution_parameter=1.0
+)
+```
+
+### Diffusion-Based Algorithms
+
+#### DER (Diffusion Entropy Reducer)
+```python
+detector = CommunityDetector(
+    algorithm='der',
+    walk_len=3,
+    threshold=0.00001
+)
+```
+
+#### Async Fluid
+```python
+detector = CommunityDetector(
+    algorithm='async_fluid',
+    k=5  # Number of communities
+)
+```
+
+### Structural Algorithms
+
+#### SCAN
+```python
+detector = CommunityDetector(
+    algorithm='scan',
+    epsilon=0.5,  # Neighborhood radius
+    mu=3  # Minimum neighbors
+)
+```
+
+#### AGDL
+```python
+detector = CommunityDetector(
+    algorithm='agdl',
+    number_communities=5,
+    kc=3  # Seed selection parameter
+)
+```
+
+#### GDMP2
+```python
+detector = CommunityDetector(
+    algorithm='gdmp2',
+    min_threshold=0.75
+)
+```
+
+### Overlapping Algorithms
+
+#### Angel
+```python
+detector = CommunityDetector(
+    algorithm='angel',
+    threshold=0.25,
+    min_community_size=3
+)
+```
+
+#### Surprise Communities
+```python
+detector = CommunityDetector(
+    algorithm='surprise_communities'
+)
+```
+
 ## 📊 Evaluation Metrics
 
 ClusterNet provides comprehensive evaluation metrics:
 
 - **Normalized Mutual Information (NMI)**: Similarity between two partitions
-- **Adjusted Mutual Information (AMI)**: Chance-adjusted NMI
+- **Adjusted Mutual Information (AMI)**: Chance-adjusted NMI (recommended over NMI)
 - **Adjusted Rand Index (ARI)**: Similarity measure adjusted for chance
 - **Fowlkes-Mallows Index (FMI)**: Geometric mean of precision and recall
 - **Modularity**: Quality measure for community structure
 - **Coverage**: Fraction of edges within communities
 - **Performance**: Ratio of correctly identified edges
+- **Surprise**: Statistical significance of community structure
+
+> **Note**: We recommend using **AMI** instead of NMI for more robust comparisons, as it accounts for chance agreement.
 
 ```python
 from clusternet.utils import evaluate_communities, compare_communities
@@ -343,6 +530,34 @@ list_algorithms(verbose)
 get_algorithm_class(name)
 ```
 
+## 📚 Algorithm Categories
+
+Algorithms are organized into categories for easy discovery:
+
+```python
+from clusternet.registry import get_algorithms_by_category, get_algorithm_category
+
+# Get algorithms by category
+statistical = get_algorithms_by_category('statistical')
+# ['em', 'sbm', 'sbm_nested']
+
+physics = get_algorithms_by_category('physics')
+# ['cpm', 'rb_pots', 'rber_pots']
+
+diffusion = get_algorithms_by_category('diffusion')
+# ['der', 'async_fluid']
+
+structural = get_algorithms_by_category('structural')
+# ['scan', 'agdl', 'gdmp2']
+
+overlapping = get_algorithms_by_category('overlapping')
+# ['angel', 'surprise_communities']
+
+# Check algorithm category
+category = get_algorithm_category('sbm')
+# 'statistical'
+```
+
 ## 🤝 Contributing
 
 Contributions are welcome! To add a new algorithm:
@@ -377,11 +592,40 @@ For questions and support, please open an issue on GitHub.
 
 ## 🙏 Acknowledgments
 
-This package integrates and provides a unified interface for multiple community detection algorithms developed by various researchers. Please cite the original papers when using specific algorithms.
+This package integrates and provides a unified interface for multiple community detection algorithms developed by various researchers. 
+
+**Special thanks to:**
+- The [cdlib](https://github.com/GiulioRossetti/cdlib) project for providing access to 70+ community detection algorithms
+- Original algorithm authors whose work we integrate
+
+Please cite the original papers when using specific algorithms.
 
 ## 📖 References
 
+### Core Algorithms
 - Blondel et al. (2008). "Fast unfolding of communities in large networks"
 - Traag et al. (2019). "From Louvain to Leiden"
 - Jin, J. (2015). "Fast Community Detection by SCORE"
-- And more...
+
+### Statistical Algorithms
+- Newman & Leicht (2007). "Mixture models and exploratory analysis in networks"
+- Peixoto (2014). "Hierarchical block structures and high-resolution model selection"
+
+### Physics-Based Algorithms
+- Reichardt & Bornholdt (2006). "Statistical mechanics of community detection"
+- Traag et al. (2011). "Narrow scope for resolution-limit-free community detection"
+
+### Diffusion Algorithms
+- Kozdoba & Mannor (2013). "Community detection via measure space embedding"
+- Parés et al. (2017). "Fluid Communities: A Competitive and Highly Scalable Algorithm"
+
+### Structural Algorithms
+- Xu et al. (2007). "SCAN: A structural clustering algorithm for networks"
+- Zhang et al. (2012). "Graph degree linkage: Agglomerative clustering"
+
+### Overlapping Algorithms
+- Rossetti (2019). "Exorcising the Demon: Angel, Efficient Node-Centric Community Discovery"
+- Aldecoa & Marín (2013). "Surprise maximization reveals community structure"
+
+### Framework
+- Rossetti et al. (2019). "CDlib: a Python Library to Extract, Compare and Evaluate Communities"

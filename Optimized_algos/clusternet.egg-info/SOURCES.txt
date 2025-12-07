@@ -21,6 +21,12 @@ clusternet/algorithms/simnet_wrapper.py
 clusternet/algorithms/svt_wrapper.py
 clusternet/algorithms/teamcs_wrapper.py
 clusternet/algorithms/tusk_wrapper.py
+clusternet/algorithms/cdlib_wrappers/__init__.py
+clusternet/algorithms/cdlib_wrappers/diffusion_wrappers.py
+clusternet/algorithms/cdlib_wrappers/overlapping_wrappers.py
+clusternet/algorithms/cdlib_wrappers/physics_wrappers.py
+clusternet/algorithms/cdlib_wrappers/statistical_wrappers.py
+clusternet/algorithms/cdlib_wrappers/structural_wrappers.py
 clusternet/utils/__init__.py
 clusternet/utils/graph_utils.py
 clusternet/utils/metrics.py

@@ -111,6 +111,11 @@ ALGORITHM_CATEGORIES = {
     'hierarchical': ['simnet', 'teamcs'],
     'infomap': ['infomap', 'tusk'],
     'hybrid': ['bigs2'],
+    'statistical': ['em', 'sbm', 'sbm_nested'],
+    'physics': ['cpm', 'rb_pots', 'rber_pots'],
+    'diffusion': ['der', 'async_fluid'],
+    'structural': ['scan', 'agdl', 'gdmp2'],
+    'overlapping': ['angel', 'surprise_communities'],
 }
 
 

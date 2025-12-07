@@ -34,6 +34,10 @@ setup(
         "infomap>=2.0.0",
         "joblib>=1.0.0",
         "igraph",
+        "cdlib>=0.4.0",
+        "python-louvain>=0.15",
+        "leidenalg>=0.8.0",
+        "wurlitzer>=3.0.0",
     ],
     extras_require={
         "gpu": [

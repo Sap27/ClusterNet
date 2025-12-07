@@ -8,6 +8,10 @@ igraph
 # Algorithm-specific Dependencies
 infomap>=2.0.0
 joblib>=1.0.0
+cdlib>=0.4.0
+python-louvain>=0.15
+leidenalg>=0.8.0
+wurlitzer>=3.0.0
 
 # Optional Dependencies
 # Install with: pip install -r requirements.txt -r requirements-optional.txt
