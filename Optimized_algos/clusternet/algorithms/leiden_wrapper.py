@@ -61,10 +61,16 @@ class LeidenWrapper(BaseAlgorithm):
                                 resolution=self.resolution,
                                 randomness=self.randomness)
         
-        partition = leiden.run()
-        communities = self._partition_to_communities(partition)
+        result = leiden.run()
         
-        return communities
+        # Check if result is already a list of communities or a partition dict
+        if isinstance(result, list):
+            # Already formatted as list of communities
+            return result
+        else:
+            # Convert partition dict to list of lists
+            communities = self._partition_to_communities(result)
+            return communities
     
     def _partition_to_communities(self, partition):
         """Convert partition dictionary to list of lists."""

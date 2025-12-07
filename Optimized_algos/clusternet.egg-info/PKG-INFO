@@ -1,0 +1,438 @@
+Metadata-Version: 2.4
+Name: clusternet
+Version: 1.0.0
+Summary: A unified framework for community detection in graphs
+Home-page: https://github.com/clusternet/clusternet
+Author: ClusterNet Team
+Author-email: clusternet@example.com
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Information Analysis
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: networkx>=2.8
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: scipy>=1.7.0
+Requires-Dist: scikit-learn>=1.0.0
+Requires-Dist: infomap>=2.0.0
+Requires-Dist: joblib>=1.0.0
+Requires-Dist: igraph
+Provides-Extra: gpu
+Requires-Dist: cupy-cuda11x>=10.0.0; extra == "gpu"
+Requires-Dist: cudf-cu11>=22.0.0; extra == "gpu"
+Requires-Dist: cugraph-cu11>=22.0.0; extra == "gpu"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=3.0.0; extra == "dev"
+Requires-Dist: black>=22.0.0; extra == "dev"
+Requires-Dist: flake8>=4.0.0; extra == "dev"
+Requires-Dist: sphinx>=4.0.0; extra == "dev"
+Provides-Extra: all
+Requires-Dist: psutil>=5.8.0; extra == "all"
+Requires-Dist: matplotlib>=3.5.0; extra == "all"
+Requires-Dist: pandas>=1.3.0; extra == "all"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# ClusterNet: A Unified Framework for Community Detection
+
+ClusterNet is a comprehensive Python package for community detection in graphs. It provides a unified interface for running various community detection algorithms on directed/undirected and weighted/unweighted graphs.
+
+## 🚀 Features
+
+- **Unified API**: Single interface for all algorithms
+- **Multiple Algorithms**: 8+ state-of-the-art community detection algorithms
+- **Graph Flexibility**: Handles directed/undirected, weighted/unweighted graphs
+- **Easy to Use**: Simple Python API and command-line interface
+- **Comprehensive Metrics**: Built-in evaluation metrics (NMI, AMI, ARI, Modularity, etc.)
+- **Production Ready**: Well-tested, documented, and optimized
+
+## 📦 Installation
+
+```bash
+# Clone the repository
+cd Optimized_algos
+
+# Install the package
+pip install -e .
+
+# Or install with all dependencies
+pip install -e ".[all]"
+```
+
+## 🎯 Quick Start
+
+### Python API
+
+```python
+import networkx as nx
+from clusternet import CommunityDetector
+
+# Load or create a graph
+G = nx.karate_club_graph()
+
+# Detect communities using Louvain
+detector = CommunityDetector(algorithm='louvain', resolution=1.0)
+communities = detector.detect(G)
+
+print(f"Found {len(communities)} communities")
+```
+
+### Command-Line Interface
+
+```bash
+# Run Louvain on a network file
+clusternet network.dat louvain --output communities.txt
+
+# Run Leiden with custom parameters
+clusternet network.dat leiden --resolution 1.5 --output output.txt
+
+# List all available algorithms
+clusternet --list-algorithms
+
+# Evaluate communities
+clusternet network.dat louvain --evaluate
+```
+
+## 🧩 Available Algorithms
+
+| Algorithm | Type | Directed | Weighted | Best For |
+|-----------|------|----------|----------|----------|
+| **Louvain** | Modularity | ✓ | ✓ | General purpose, fast |
+| **Leiden** | Modularity | ✓ | ✓ | Guaranteed connectivity |
+| **CSBIO-IITM2** | Ensemble | ✓ | ✓ | Robust, stable communities |
+| **SCORE** | Spectral | ✓ | ✓ | Directed graphs, degree heterogeneity |
+| **SVT** | Spectral | ✗ | ✓ | Feature-based clustering |
+| **TeamCS** | Hybrid | ✗ | ✓ | Hierarchical structure |
+| **SimNet** | Spectral | ✗ | ✓ | Noisy networks |
+| **Tusk** | Hybrid | ✗ | ✓ | Complex networks |
+| **BiGS2** | Hybrid | ✗ | ✓ | Multi-level communities |
+
+## 📖 Usage Examples
+
+### 1. Basic Usage
+
+```python
+from clusternet import CommunityDetector
+import networkx as nx
+
+# Create a graph
+G = nx.karate_club_graph()
+
+# Detect communities
+detector = CommunityDetector(algorithm='louvain')
+communities = detector.detect(G)
+```
+
+### 2. Load from File
+
+```python
+from clusternet import CommunityDetector, load_graph
+
+# Load graph from edge list file
+G = load_graph('network.dat', directed=False, weighted=True)
+
+# Detect communities
+detector = CommunityDetector(algorithm='leiden', resolution=1.5)
+communities = detector.detect(G, output_file='communities.txt')
+```
+
+### 3. Compare Multiple Algorithms
+
+```python
+from clusternet import BatchDetector
+import networkx as nx
+
+G = nx.karate_club_graph()
+
+# Run multiple algorithms
+detector = BatchDetector(algorithms=['louvain', 'leiden', 'score'])
+results = detector.detect_all(G)
+
+for algo, communities in results.items():
+    print(f"{algo}: {len(communities)} communities")
+```
+
+### 4. Evaluate Communities
+
+```python
+from clusternet import CommunityDetector
+from clusternet.utils import evaluate_communities
+import networkx as nx
+
+G = nx.karate_club_graph()
+
+detector = CommunityDetector(algorithm='louvain')
+communities = detector.detect(G)
+
+# Evaluate quality
+metrics = evaluate_communities(G, communities, verbose=True)
+print(f"Modularity: {metrics['modularity']:.4f}")
+```
+
+### 5. Compare Two Community Structures
+
+```python
+from clusternet.utils import compare_communities
+
+# Detect with two different algorithms
+detector1 = CommunityDetector(algorithm='louvain')
+communities1 = detector1.detect(G)
+
+detector2 = CommunityDetector(algorithm='leiden')
+communities2 = detector2.detect(G)
+
+# Compare
+metrics = compare_communities(communities1, communities2, verbose=True)
+print(f"NMI: {metrics['nmi']:.4f}")
+```
+
+## 🔧 Algorithm-Specific Parameters
+
+### Louvain
+```python
+detector = CommunityDetector(
+    algorithm='louvain',
+    resolution=1.0  # Higher = more communities
+)
+```
+
+### Leiden
+```python
+detector = CommunityDetector(
+    algorithm='leiden',
+    resolution=1.0,
+    randomness=0.01  # Theta parameter
+)
+```
+
+### CSBIO-IITM2 (Ensemble Louvain)
+```python
+detector = CommunityDetector(
+    algorithm='csbio_iitm2',
+    resolutions=None,    # Auto range 0.1-1.0
+    strength=2           # Ensemble strength
+)
+```
+
+### SVT
+```python
+detector = CommunityDetector(
+    algorithm='svt',
+    svd_k=50,           # Number of singular values
+    n_clusters=50,      # Initial clusters
+    module_size=40,     # Target module size
+    n_neighbors=100     # Connectivity neighbors
+)
+```
+
+### SCORE
+```python
+detector = CommunityDetector(
+    algorithm='score',
+    n_clusters=None  # Auto-detect if None
+)
+```
+
+### SimNet
+```python
+detector = CommunityDetector(
+    algorithm='simnet',
+    initial_clusters=28,
+    cluster_size_threshold=50,
+    denoise_lambda=1.0,
+    denoise_beta=0.1
+)
+```
+
+## 📊 Evaluation Metrics
+
+ClusterNet provides comprehensive evaluation metrics:
+
+- **Normalized Mutual Information (NMI)**: Similarity between two partitions
+- **Adjusted Mutual Information (AMI)**: Chance-adjusted NMI
+- **Adjusted Rand Index (ARI)**: Similarity measure adjusted for chance
+- **Fowlkes-Mallows Index (FMI)**: Geometric mean of precision and recall
+- **Modularity**: Quality measure for community structure
+- **Coverage**: Fraction of edges within communities
+- **Performance**: Ratio of correctly identified edges
+
+```python
+from clusternet.utils import evaluate_communities, compare_communities
+
+# Evaluate single community structure
+metrics = evaluate_communities(G, communities, verbose=True)
+
+# Compare two structures
+comparison = compare_communities(communities1, communities2, verbose=True)
+```
+
+## 🔄 Graph Preprocessing
+
+ClusterNet automatically handles different graph types:
+
+```python
+from clusternet.utils import preprocess_graph
+
+# Convert directed to undirected
+G_undirected = preprocess_graph(G, directed=False)
+
+# Remove self-loops
+G_clean = preprocess_graph(G, remove_self_loops=True)
+
+# Keep only largest connected component
+G_connected = preprocess_graph(G, ensure_connected=True)
+```
+
+## 📁 File Formats
+
+### Input Format (Edge List)
+```
+# Comments start with #
+source target weight
+1 2 1.5
+2 3 2.0
+3 4 1.0
+```
+
+### Output Format
+```
+# Simple (default)
+1 2 3 4
+5 6 7
+8 9 10
+
+# Detailed
+Community 1 (size=4): 1 2 3 4
+Community 2 (size=3): 5 6 7
+Community 3 (size=3): 8 9 10
+
+# ClusterNet format
+1	0.5	1	2	3	4
+2	0.5	5	6	7
+3	0.5	8	9	10
+```
+
+## 🛠️ Development
+
+### Running Tests
+```bash
+pytest tests/
+```
+
+### Building Documentation
+```bash
+cd docs
+make html
+```
+
+### Code Formatting
+```bash
+black clusternet/
+flake8 clusternet/
+```
+
+## 📚 API Reference
+
+### CommunityDetector
+
+Main class for community detection.
+
+```python
+CommunityDetector(algorithm: str, **kwargs)
+```
+
+**Methods:**
+- `detect(G, input_file, directed, weighted, output_file)`: Detect communities
+- `get_algorithm_info()`: Get algorithm metadata
+
+### BatchDetector
+
+Run multiple algorithms for comparison.
+
+```python
+BatchDetector(algorithms: List[str], **common_params)
+```
+
+**Methods:**
+- `detect_all(G, input_file, directed, weighted)`: Run all algorithms
+
+### Utility Functions
+
+```python
+# Graph I/O
+load_graph(file_path, directed, weighted)
+save_communities(communities, file_path, format)
+
+# Preprocessing
+preprocess_graph(G, directed, weighted, remove_self_loops, ensure_connected)
+validate_graph(G, min_nodes, min_edges, allow_self_loops)
+
+# Evaluation
+compare_communities(communities1, communities2, verbose)
+evaluate_communities(G, communities, verbose)
+compute_modularity(G, communities)
+compute_coverage(G, communities)
+
+# Registry
+list_algorithms(verbose)
+get_algorithm_class(name)
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! To add a new algorithm:
+
+1. Create a wrapper class inheriting from `BaseAlgorithm`
+2. Implement the `run()` method
+3. Register with `@register_algorithm` decorator
+4. Add tests and documentation
+
+```python
+from clusternet.base import BaseAlgorithm
+from clusternet.registry import register_algorithm
+
+@register_algorithm('myalgo', aliases=['my_algorithm'])
+class MyAlgorithmWrapper(BaseAlgorithm):
+    SUPPORTS_DIRECTED = True
+    SUPPORTS_WEIGHTED = True
+    
+    def run(self):
+        # Your implementation
+        communities = ...
+        return communities
+```
+
+## 📄 License
+
+MIT License - See LICENSE file for details
+
+## 📧 Contact
+
+For questions and support, please open an issue on GitHub.
+
+## 🙏 Acknowledgments
+
+This package integrates and provides a unified interface for multiple community detection algorithms developed by various researchers. Please cite the original papers when using specific algorithms.
+
+## 📖 References
+
+- Blondel et al. (2008). "Fast unfolding of communities in large networks"
+- Traag et al. (2019). "From Louvain to Leiden"
+- Jin, J. (2015). "Fast Community Detection by SCORE"
+- And more...

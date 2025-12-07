@@ -33,7 +33,7 @@ Examples:
   clusternet --list-algorithms
   
   # Run SVT with custom parameters
-  clusternet network.dat svt --svd_k 100 --n_clusters 50
+  clusternet network.dat svt --params svd_k=100 n_clusters=50
         """
     )
     

@@ -33,6 +33,7 @@ setup(
         "scikit-learn>=1.0.0",
         "infomap>=2.0.0",
         "joblib>=1.0.0",
+        "igraph",
     ],
     extras_require={
         "gpu": [

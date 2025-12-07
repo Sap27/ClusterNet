@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from tusk import tusk_community_detection
+from tusk import tusk_clustering
 from clusternet.base import BaseAlgorithm
 from clusternet.registry import register_algorithm
 
@@ -21,24 +21,24 @@ class TuskWrapper(BaseAlgorithm):
     methods to detect communities effectively in complex networks.
     
     Parameters:
-        num_com: Target number of communities (default: auto-detect)
+        k_components: Target number of components/clusters (default: 20)
     """
     
     SUPPORTS_DIRECTED = False
     SUPPORTS_WEIGHTED = True
     
-    def __init__(self, G, num_com=None, **kwargs):
+    def __init__(self, G, k_components=20, **kwargs):
         """
         Initialize Tusk algorithm.
         
         Args:
             G: NetworkX graph
-            num_com: Number of communities (None for auto-detection)
+            k_components: Number of components (default: 20)
             **kwargs: Additional parameters
         """
         super().__init__(G, **kwargs)
-        self.num_com = num_com
-        self.params['num_com'] = num_com
+        self.k_components = k_components
+        self.params['k_components'] = k_components
     
     def run(self):
         """
@@ -47,9 +47,9 @@ class TuskWrapper(BaseAlgorithm):
         Returns:
             List of communities
         """
-        communities = tusk_community_detection(
-            G=self.G,
-            num_com=self.num_com
+        communities = tusk_clustering(
+            input_data=self.G,
+            k_components=self.k_components
         )
         
         return communities
