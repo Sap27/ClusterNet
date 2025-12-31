@@ -156,3 +156,5 @@ class NestedSBMWrapper(BaseAlgorithm):
                     comm_dict[comm_id].append(node)
                 return list(comm_dict.values())
 
+
+

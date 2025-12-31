@@ -62,6 +62,42 @@ try:
 except ImportError as e:
     print(f"Warning: Could not load cdlib wrappers: {e}")
 
+# Import new classic community detection algorithms
+try:
+    from clusternet.algorithms.walktrap_wrapper import WalktrapWrapper
+except ImportError as e:
+    print(f"Warning: Could not load Walktrap: {e}")
+
+try:
+    from clusternet.algorithms.spinglass_wrapper import SpinGlassWrapper
+except ImportError as e:
+    print(f"Warning: Could not load SpinGlass: {e}")
+
+try:
+    from clusternet.algorithms.spectral_wrapper import SpectralWrapper
+except ImportError as e:
+    print(f"Warning: Could not load Spectral Clustering: {e}")
+
+try:
+    from clusternet.algorithms.label_propagation_wrapper import LabelPropagationWrapper
+except ImportError as e:
+    print(f"Warning: Could not load Label Propagation: {e}")
+
+try:
+    from clusternet.algorithms.fastgreedy_wrapper import FastGreedyWrapper
+except ImportError as e:
+    print(f"Warning: Could not load FastGreedy: {e}")
+
+try:
+    from clusternet.algorithms.leading_eigen_wrapper import LeadingEigenWrapper
+except ImportError as e:
+    print(f"Warning: Could not load Leading Eigenvector: {e}")
+
+try:
+    from clusternet.algorithms.girvan_newman_wrapper import GirvanNewmanWrapper
+except ImportError as e:
+    print(f"Warning: Could not load Girvan-Newman: {e}")
+
 __all__ = [
     'BaseAlgorithm',
     'LouvainWrapper',
@@ -73,5 +109,13 @@ __all__ = [
     'TuskWrapper',
     'BiGS2Wrapper',
     'CSBIOWrapper',
+    # New classic algorithms
+    'WalktrapWrapper',
+    'SpinGlassWrapper',
+    'SpectralWrapper',
+    'LabelPropagationWrapper',
+    'FastGreedyWrapper',
+    'LeadingEigenWrapper',
+    'GirvanNewmanWrapper',
 ]
 

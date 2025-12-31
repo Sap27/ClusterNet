@@ -7,6 +7,43 @@ from typing import List, Optional, Union
 import warnings
 
 
+# ==========================================
+# HELPER FUNCTIONS (matching main.py)
+# ==========================================
+
+def str_to_bool(s):
+    """Convert string to boolean (matching main.py)."""
+    if type(s) == str:
+        return {'true': True, 'false': False}[s.lower()]
+    else:
+        return s
+
+
+def process_network_file(network_file, weighted=True, directed=False):
+    """
+    Load a network file into a NetworkX graph (matching main.py).
+    
+    Args:
+        network_file: Path to edge list file
+        weighted: Whether to read edge weights
+        directed: Whether to create directed graph
+        
+    Returns:
+        NetworkX graph
+    """
+    if weighted:
+        if directed:
+            G = nx.read_edgelist(network_file, data=(('weight', float),), nodetype=int, create_using=nx.DiGraph())
+        else:
+            G = nx.read_edgelist(network_file, data=(('weight', float),), nodetype=int)
+    else:
+        if directed:
+            G = nx.read_edgelist(network_file, nodetype=int, create_using=nx.DiGraph())
+        else:
+            G = nx.read_edgelist(network_file, nodetype=int)
+    return G
+
+
 def load_graph(file_path: str, 
                directed: bool = False,
                weighted: bool = True,

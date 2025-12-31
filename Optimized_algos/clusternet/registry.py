@@ -105,15 +105,15 @@ def algorithm_exists(name: str) -> bool:
 
 # Algorithm metadata
 ALGORITHM_CATEGORIES = {
-    'modularity': ['louvain', 'leiden'],
+    'modularity': ['louvain', 'leiden', 'fastgreedy', 'leading_eigenvector'],
     'ensemble': ['csbio_iitm2', 'ensemble_louvain'],
-    'spectral': ['score', 'svt'],
-    'hierarchical': ['simnet', 'teamcs'],
+    'spectral': ['score', 'svt', 'spectral'],
+    'hierarchical': ['simnet', 'teamcs', 'walktrap', 'girvan_newman'],
     'infomap': ['infomap', 'tusk'],
     'hybrid': ['bigs2'],
-    'statistical': ['em', 'sbm', 'sbm_nested'],
+    'statistical': ['em', 'sbm', 'sbm_nested', 'spinglass'],
     'physics': ['cpm', 'rb_pots', 'rber_pots'],
-    'diffusion': ['der', 'async_fluid'],
+    'diffusion': ['der', 'async_fluid', 'label_propagation'],
     'structural': ['scan', 'agdl', 'gdmp2'],
     'overlapping': ['angel', 'surprise_communities'],
 }

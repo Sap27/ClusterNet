@@ -105,6 +105,22 @@ clusternet network.dat louvain --evaluate
 | **Tusk** | Hybrid | ✗ | ✓ | Complex networks |
 | **BiGS2** | Hybrid | ✗ | ✓ | Multi-level communities |
 
+### igraph/sklearn-Based Algorithms (7)
+
+These algorithms use igraph's highly optimized C implementations or sklearn and match the main.py reference exactly:
+
+| Algorithm | Type | Directed | Weighted | Function Used |
+|-----------|------|----------|----------|---------------|
+| **Walktrap** | Random Walk | ✓ | ✓ | `community_walktrap` |
+| **Fast Greedy** | Modularity | ✓ | ✓ | `community_fastgreedy` |
+| **Spin Glass** | Physics | ✓ | ✓ | `community_spinglass` |
+| **Label Propagation** | Propagation | ✓ | ✓ | `community_label_propagation` |
+| **Leading Eigenvector** | Spectral | ✓ | ✓ | `community_leading_eigenvector` |
+| **Girvan-Newman** | Betweenness | ✓ | ✓ | `nx.community.girvan_newman` |
+| **Spectral Clustering** | Spectral | ✓ | ✓ | `sklearn.SpectralClustering` |
+
+> **Note**: All these implementations are identical to `main.py` - they use the same underlying igraph/networkx/sklearn functions with the same parameters.
+
 ### CDlib-Integrated Algorithms (14)
 
 #### Statistical Inference (3)
@@ -274,6 +290,77 @@ detector = CommunityDetector(
     cluster_size_threshold=50,
     denoise_lambda=1.0,
     denoise_beta=0.1
+)
+```
+
+### igraph-Based Algorithms
+
+These algorithms match `main.py` exactly and use igraph's optimized C implementations:
+
+#### Walktrap
+```python
+detector = CommunityDetector(
+    algorithm='walktrap',
+    steps=10,         # Number of steps in random walk
+    weighted=True,    # Use edge weights
+    directed=False    # Treat as undirected
+)
+```
+
+#### Fast Greedy
+```python
+detector = CommunityDetector(
+    algorithm='fastgreedy',
+    weighted=True,
+    directed=False
+)
+```
+
+#### Spin Glass
+```python
+detector = CommunityDetector(
+    algorithm='spinglass',
+    spins=25,         # Number of spins (max communities)
+    weighted=True,
+    directed=False
+)
+```
+
+#### Label Propagation
+```python
+detector = CommunityDetector(
+    algorithm='label_propagation',
+    weighted=True,
+    directed=False
+)
+```
+
+#### Leading Eigenvector
+```python
+detector = CommunityDetector(
+    algorithm='leading_eigenvector',
+    weighted=True,
+    directed=False
+)
+```
+
+#### Girvan-Newman
+```python
+detector = CommunityDetector(
+    algorithm='girvan_newman',
+    weighted=True,
+    directed=False
+)
+```
+
+#### Spectral Clustering
+```python
+detector = CommunityDetector(
+    algorithm='spectral',
+    n_clusters=30,      # Number of clusters
+    n_components=10,    # Number of eigenvector components
+    weighted=True,
+    directed=False
 )
 ```
 
@@ -606,6 +693,15 @@ Please cite the original papers when using specific algorithms.
 - Blondel et al. (2008). "Fast unfolding of communities in large networks"
 - Traag et al. (2019). "From Louvain to Leiden"
 - Jin, J. (2015). "Fast Community Detection by SCORE"
+
+### igraph-Based Algorithms
+- Pons & Latapy (2005). "Computing Communities in Large Networks Using Random Walks" (Walktrap)
+- Clauset, Newman, Moore (2004). "Finding community structure in very large networks" (Fast Greedy)
+- Reichardt & Bornholdt (2006). "Statistical mechanics of community detection" (Spin Glass)
+- Raghavan, Albert, Kumara (2007). "Near linear time algorithm to detect community structures" (Label Propagation)
+- Newman (2006). "Finding community structure using eigenvectors of matrices" (Leading Eigenvector)
+- Girvan & Newman (2002). "Community structure in social and biological networks" (Girvan-Newman)
+- Ng, Jordan, Weiss (2002). "On Spectral Clustering: Analysis and an algorithm" (Spectral Clustering)
 
 ### Statistical Algorithms
 - Newman & Leicht (2007). "Mixture models and exploratory analysis in networks"
