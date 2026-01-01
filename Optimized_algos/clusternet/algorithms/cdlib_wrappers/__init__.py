@@ -16,10 +16,11 @@ __all__ = [
     'SBMWrapper',
     'NestedSBMWrapper',
     
-    # Physics-based
+    # Physics/Quality-function based
     'CPMWrapper',
     'RBPotsWrapper',
     'RBERPotsWrapper',
+    'SurpriseCommunitiesWrapper',  # Moved from overlapping - actually disjoint
     
     # Diffusion-based
     'DERWrapper',
@@ -32,7 +33,8 @@ __all__ = [
     
     # Overlapping
     'AngelWrapper',
-    'SurpriseCommunitiesWrapper',
+    'DEMONWrapper',
+    'KCliqueWrapper',
 ]
 
 

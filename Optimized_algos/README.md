@@ -5,7 +5,7 @@ ClusterNet is a comprehensive Python package for community detection in graphs. 
 ## 🚀 Features
 
 - **Unified API**: Single interface for all algorithms
-- **36 Algorithms**: Comprehensive collection of community detection methods
+- **38 Algorithms**: Comprehensive collection of community detection methods
 - **Algorithm Diversity**: Traditional, statistical, physics-based, diffusion, structural, overlapping, and GNN methods
 - **GPU Acceleration**: 7 GNN models with full GPU support via PyTorch Geometric
 - **Graph Flexibility**: Handles directed/undirected, weighted/unweighted graphs
@@ -102,10 +102,10 @@ clusternet network.dat louvain --evaluate
 
 | Category | Count | GPU Support |
 |----------|-------|-------------|
-| Custom/Classic Algorithms | 16 | ❌ (SimNet has GPU variant) |
-| CDlib Wrappers | 13 | ❌ |
+| Custom/Classic Algorithms | 16 | ⚡ SimNet + BiGS2 have GPU variants |
+| CDlib Wrappers | 15 | ❌ |
 | GNN Models | 7 | ✅ All |
-| **Total** | **36** | **7 GPU-enabled** |
+| **Total** | **38** | **9 GPU-enabled** |
 
 ---
 
@@ -125,12 +125,18 @@ clusternet network.dat louvain --evaluate
 | 10 | **SVT/Tianle** | `svt` | Spectral | ✗ | ✓ | Custom |
 | 11 | **SCORE** | `score` | Spectral | ✓ | ✓ | Custom |
 | 12 | **TeamCS** | `teamcs` | Hybrid | ✗ | ✓ | Custom |
-| 13 | **SimNet** | `simnet` | Spectral | ✗ | ✓ | Custom (GPU variant exists) |
+| 13 | **SimNet** | `simnet` | Spectral | ✗ | ✓ | Custom ⚡ GPU variant (CuPy) |
 | 14 | **Tusk** | `tusk` | Hybrid | ✗ | ✓ | Custom |
-| 15 | **BiGS2** | `bigs2` | Hybrid | ✗ | ✓ | Custom |
+| 15 | **BiGS2** | `bigs2` | Hybrid | ✗ | ✓ | Custom ⚡ GPU variant (CuPy/cuML/FAISS) |
 | 16 | **CSBIO-IITM2** | `csbio_iitm2` | Ensemble | ✓ | ✓ | Custom |
 
 > **Note**: Algorithms 3-9 (igraph/sklearn-based) match the `main.py` reference implementation exactly.
+
+> **GPU Support**: SimNet and BiGS2 have GPU-accelerated variants using CuPy, cuML, and optional FAISS. Install with:
+> ```bash
+> pip install cupy-cuda11x cuml-cu11  # For CUDA 11
+> pip install faiss-gpu               # Optional: 2-5x faster KMeans
+> ```
 
 ---
 
@@ -143,31 +149,35 @@ clusternet network.dat louvain --evaluate
 | 2 | **SBM** | `sbm` | `cdlib.algorithms.sbm_dl` | ✓ | ✓ |
 | 3 | **Nested SBM** | `sbm_nested` | `cdlib.algorithms.sbm_dl_nested` | ✓ | ✓ |
 
-#### Physics-Based (3)
-| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
-|---|-----------|-------------------|----------------|----------|----------|
-| 4 | **CPM** | `cpm` | `cdlib.algorithms.cpm` | ✓ | ✓ |
-| 5 | **RB Potts** | `rb_pots` | `cdlib.algorithms.rb_pots` | ✓ | ✓ |
-| 6 | **RBER Potts** | `rber_pots` | `cdlib.algorithms.rber_pots` | ✗ | ✓ |
+#### Physics/Quality-Function Based (4)
+| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted | Notes |
+|---|-----------|-------------------|----------------|----------|----------|-------|
+| 4 | **CPM** | `cpm` | `cdlib.algorithms.cpm` | ✓ | ✓ | Constant Potts Model |
+| 5 | **RB Potts** | `rb_pots` | `cdlib.algorithms.rb_pots` | ✓ | ✓ | Same as Leiden at γ=1 |
+| 6 | **RBER Potts** | `rber_pots` | `cdlib.algorithms.rber_pots` | ✗ | ✓ | ER null model variant |
+| 7 | **Surprise** | `surprise_communities` | `cdlib.algorithms.surprise_communities` | ✗ | ✓ | Better for small communities |
 
 #### Diffusion-Based (2)
 | # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
 |---|-----------|-------------------|----------------|----------|----------|
-| 7 | **DER** | `der` | `cdlib.algorithms.der` | ✗ | ✓ |
-| 8 | **Async Fluid** | `async_fluid` | `cdlib.algorithms.async_fluid` | ✗ | ✗ |
+| 8 | **DER** | `der` | `cdlib.algorithms.der` | ✗ | ✓ |
+| 9 | **Async Fluid** | `async_fluid` | `cdlib.algorithms.async_fluid` | ✗ | ✗ |
 
 #### Structural (3)
 | # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
 |---|-----------|-------------------|----------------|----------|----------|
-| 9 | **SCAN** | `scan` | `cdlib.algorithms.scan` | ✗ | ✗ |
-| 10 | **AGDL** | `agdl` | `cdlib.algorithms.agdl` | ✗ | ✓ |
-| 11 | **GDMP2** | `gdmp2` | `cdlib.algorithms.gdmp2` | ✗ | ✓ |
+| 10 | **SCAN** | `scan` | `cdlib.algorithms.scan` | ✗ | ✗ |
+| 11 | **AGDL** | `agdl` | `cdlib.algorithms.agdl` | ✗ | ✓ |
+| 12 | **GDMP2** | `gdmp2` | `cdlib.algorithms.gdmp2` | ✗ | ✓ |
 
-#### Overlapping (2)
-| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
-|---|-----------|-------------------|----------------|----------|----------|
-| 12 | **Angel** | `angel` | `cdlib.algorithms.angel` | ✗ | ✗ |
-| 13 | **Surprise Communities** | `surprise_communities` | `cdlib.algorithms.surprise_communities` | ✗ | ✓ |
+#### Overlapping (3)
+| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted | Notes |
+|---|-----------|-------------------|----------------|----------|----------|-------|
+| 13 | **Angel** | `angel` | `cdlib.algorithms.angel` | ✗ | ✗ | Node-centric, fast |
+| 14 | **DEMON** | `demon` | `cdlib.algorithms.demon` | ✗ | ✗ | Ego-network based (Angel's predecessor) |
+| 15 | **k-Clique** | `kclique` | `cdlib.algorithms.kclique` | ✗ | ✗ | Clique percolation (best for dense networks) |
+
+> **Note**: These are **overlapping** algorithms - nodes can belong to multiple communities. All other algorithms return disjoint partitions.
 
 ---
 
@@ -321,6 +331,50 @@ detector = CommunityDetector(
     cluster_size_threshold=50,
     denoise_lambda=1.0,
     denoise_beta=0.1
+)
+```
+
+### SimNet GPU (Direct Usage)
+```python
+# For GPU-accelerated SimNet, use the module directly
+from simnet_gpu import simnet_community_detection_gpu
+
+communities = simnet_community_detection_gpu(
+    G,
+    initial_clusters=28,
+    cluster_size_threshold=50,
+    use_gpu=True  # Uses CuPy for GPU acceleration
+)
+```
+
+### BiGS2
+```python
+detector = CommunityDetector(
+    algorithm='bigs2',
+    min_size=3,
+    max_size=100,
+    max_iter=100
+)
+```
+
+### BiGS2 GPU (Direct Usage)
+```python
+# For GPU-accelerated BiGS2 (CuPy + cuML + optional FAISS)
+import sys
+sys.path.insert(0, 'path/to/Optimized_algos')
+from bigs2_hybrid import multi_stage_score_local_gpu_optimized
+
+communities = multi_stage_score_local_gpu_optimized(
+    N=2,                    # Initial clusters
+    in_file='network.dat',  # Or pass G=graph
+    out_file='',            # Optional output file
+    Max_size=100,           # Max community size
+    Min_size=3,             # Min community size
+    Max_iter=15,            # Max iterations
+    M=5,                    # Subclusters for large communities
+    G=G,                    # Pass NetworkX graph directly
+    device_id=0,            # GPU device ID
+    gpu_threshold=100       # Min matrix size for GPU (larger = less GPU usage)
 )
 ```
 
@@ -495,20 +549,47 @@ detector = CommunityDetector(
 
 ### Overlapping Algorithms
 
+> **Note**: Angel is the only algorithm that returns **overlapping** communities (nodes can belong to multiple communities).
+
 #### Angel
 ```python
 detector = CommunityDetector(
     algorithm='angel',
-    threshold=0.25,
-    min_community_size=3
+    threshold=0.25,          # Merging threshold (0-1)
+    min_community_size=3     # Minimum community size
 )
+# Returns overlapping communities - some nodes may appear in multiple communities
 ```
+
+#### DEMON
+```python
+detector = CommunityDetector(
+    algorithm='demon',
+    epsilon=0.25,            # Label propagation threshold
+    min_com_size=3           # Minimum community size
+)
+# Ego-network based overlapping detection
+```
+
+#### k-Clique Percolation
+```python
+detector = CommunityDetector(
+    algorithm='kclique',
+    k=3                      # Clique size (3 = triangles)
+)
+# Best for networks with dense clique structure
+# Returns overlapping communities
+```
+
+### Quality-Function Algorithms
 
 #### Surprise Communities
 ```python
 detector = CommunityDetector(
     algorithm='surprise_communities'
 )
+# Returns DISJOINT communities - optimizes Surprise quality function
+# Better than modularity for detecting small communities
 ```
 
 ### GNN Models (GPU-Enabled)
@@ -769,6 +850,27 @@ analyzer = MotifAnalyzer(G, communities)
 enrichment = analyzer.compute_enrichment(motif_size=3)
 ```
 
+## 📈 LFR Benchmark Results (n=1000, μ=0.3)
+
+Recent benchmark on LFR synthetic graphs with 24 ground-truth communities:
+
+| Rank | Algorithm | AMI | Modularity | #Comms | Time (s) |
+|------|-----------|-----|------------|--------|----------|
+| 1 | SCAN | 1.00 | 0.00 | 7 | 0.06 |
+| 2 | TeamCS | 0.999 | 0.50 | 24 | 0.56 |
+| 3 | SBM (graph-tool) | 0.999 | 0.50 | 24 | 2.05 |
+| 4 | CSBIO-IITM2 | 0.999 | 0.50 | 24 | 1.70 |
+| 5 | Walktrap | 0.992 | 0.50 | 24 | 0.13 |
+| 6 | RBER_Pots | 0.990 | 0.50 | 23 | 0.05 |
+| 7 | Leiden | 0.982 | 0.50 | 21 | 0.04 |
+| 8 | RB_Pots | 0.982 | 0.50 | 21 | 0.05 |
+| 9 | Label Propagation | 0.977 | 0.50 | 23 | 0.05 |
+| 10 | Surprise | 0.975 | 0.49 | 41 | 0.06 |
+
+> **Best performers**: TeamCS, SBM, CSBIO-IITM2, and Walktrap all achieve near-perfect community recovery.
+
+> **Note**: SCAN returns fewer communities (7) due to outlier detection, giving it artificially perfect AMI on the nodes it does classify.
+
 ## 🛠️ Development
 
 ### Running Tests
@@ -856,7 +958,10 @@ structural = get_algorithms_by_category('structural')
 # ['scan', 'agdl', 'gdmp2']
 
 overlapping = get_algorithms_by_category('overlapping')
-# ['angel', 'surprise_communities']
+# ['angel']  # Only Angel returns overlapping communities
+
+quality = get_algorithms_by_category('physics')
+# ['cpm', 'rb_pots', 'rber_pots', 'surprise_communities']
 
 # Check algorithm category
 category = get_algorithm_category('sbm')

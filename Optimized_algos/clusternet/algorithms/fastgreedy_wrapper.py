@@ -29,6 +29,7 @@ class FastGreedyWrapper(BaseAlgorithm):
     Parameters:
         weighted: Whether graph is weighted (default: True)
         directed: Whether graph is directed (default: False)
+        n_clusters: Target number of clusters (if None, use optimal modularity)
     
     Reference:
         Clauset, Newman, Moore (2004). "Finding community structure in very large networks"
@@ -37,7 +38,7 @@ class FastGreedyWrapper(BaseAlgorithm):
     SUPPORTS_DIRECTED = True
     SUPPORTS_WEIGHTED = True
     
-    def __init__(self, G, weighted=True, directed=False, **kwargs):
+    def __init__(self, G, weighted=True, directed=False, n_clusters=None, **kwargs):
         """
         Initialize Fast Greedy algorithm.
         
@@ -45,13 +46,16 @@ class FastGreedyWrapper(BaseAlgorithm):
             G: NetworkX graph
             weighted: Whether graph is weighted (default: True)
             directed: Whether graph is directed (default: False)
+            n_clusters: Target number of clusters (if None, use optimal modularity cut)
             **kwargs: Additional parameters
         """
         super().__init__(G, **kwargs)
         self.weighted = weighted
         self.directed = directed
+        self.n_clusters = n_clusters
         self.params['weighted'] = weighted
         self.params['directed'] = directed
+        self.params['n_clusters'] = n_clusters
     
     def run(self):
         """
@@ -63,7 +67,8 @@ class FastGreedyWrapper(BaseAlgorithm):
         algo = FastGreedyAlgorithm(
             self.G,
             weighted=self.weighted,
-            directed=self.directed
+            directed=self.directed,
+            n_clusters=self.n_clusters
         )
         communities, runtime = algo.run()
         return communities

@@ -22,11 +22,15 @@ class FastGreedyAlgorithm:
     - Uses igraph's community_fastgreedy
     - Passes weights if weighted
     
+    Parameters:
+        n_clusters: If specified, cut dendrogram at this number of clusters
+                    If None, use optimal modularity cut
+    
     Reference:
         Clauset, Newman, Moore (2004). "Finding community structure in very large networks"
     """
     
-    def __init__(self, G, weighted=True, directed=False):
+    def __init__(self, G, weighted=True, directed=False, n_clusters=None):
         """
         Initialize Fast Greedy algorithm.
         
@@ -34,10 +38,12 @@ class FastGreedyAlgorithm:
             G: NetworkX graph
             weighted: Whether graph is weighted (default: True)
             directed: Whether graph is directed (default: False)
+            n_clusters: Target number of clusters (if None, use optimal modularity)
         """
         self.weighted = weighted
         self.directed = directed
         self.G = G
+        self.n_clusters = n_clusters
         
     def run(self) -> Tuple[List[List], float]:
         """Run the Fast Greedy algorithm matching main.py exactly."""
@@ -59,12 +65,22 @@ class FastGreedyAlgorithm:
         
         t1 = time.time()
         if self.weighted:
-            label = g.community_fastgreedy(weights=g.es["weight"])
+            try:
+                dendrogram = g.community_fastgreedy(weights=g.es["weight"])
+            except KeyError:
+                dendrogram = g.community_fastgreedy()
         else:
-            label = g.community_fastgreedy()
+            dendrogram = g.community_fastgreedy()
         t2 = time.time()
         
-        label = label.as_clustering()
+        # Cut dendrogram at specified k or optimal
+        if self.n_clusters is not None:
+            # Ensure n_clusters is within valid range
+            max_clusters = g.vcount()
+            n = min(max(1, self.n_clusters), max_clusters)
+            label = dendrogram.as_clustering(n=n)
+        else:
+            label = dendrogram.as_clustering()
         
         # Convert to communities list
         label_communities = [list(label[i]) for i in range(len(label))]

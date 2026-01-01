@@ -2,6 +2,7 @@
 Structural community detection algorithm wrappers from cdlib.
 """
 
+import numpy as np
 from cdlib import algorithms as cdlib_algos
 from clusternet.base import BaseAlgorithm
 from clusternet.registry import register_algorithm
@@ -85,8 +86,10 @@ class AGDLWrapper(BaseAlgorithm):
     to discover communities of various densities.
     
     Parameters:
-        number_communities: Target number of communities
-        kc: Size parameter for seed selection (default: 3)
+        number_communities: Target number of communities (if None, auto-estimate)
+        kc: Size parameter for seed selection (default: 5)
+            Higher kc = more seeds = finer-grained communities
+        auto_tune: If True, try EXTENSIVE parameter combinations (default: True)
     
     Reference:
         Zhang, W., et al. (2013). Identification of overlapping community structure 
@@ -96,7 +99,7 @@ class AGDLWrapper(BaseAlgorithm):
     SUPPORTS_DIRECTED = False
     SUPPORTS_WEIGHTED = True
     
-    def __init__(self, G, number_communities=None, kc=3, **kwargs):
+    def __init__(self, G, number_communities=None, kc=5, auto_tune=True, **kwargs):
         """
         Initialize AGDL algorithm.
         
@@ -104,43 +107,90 @@ class AGDLWrapper(BaseAlgorithm):
             G: NetworkX graph
             number_communities: Target number of communities
             kc: Seed selection parameter
+            auto_tune: Whether to auto-tune parameters
             **kwargs: Additional parameters
         """
         super().__init__(G, **kwargs)
+        import numpy as np
+        
+        n = G.number_of_nodes()
+        m = G.number_of_edges()
+        avg_degree = 2 * m / n if n > 0 else 1
+        
         if number_communities is None:
-            self.number_communities = max(2, int(G.number_of_nodes() ** 0.5 / 2))
+            # Better estimation: use modularity-based heuristic
+            # For LFR with n=1000, expect ~20-30 communities
+            self.number_communities = max(2, int(np.sqrt(n)))
         else:
             self.number_communities = number_communities
+            
+        # kc controls granularity - higher = finer communities
         self.kc = kc
+        
+        self.auto_tune = auto_tune
         self.params['number_communities'] = self.number_communities
-        self.params['kc'] = kc
+        self.params['kc'] = self.kc
     
     def run(self):
         """
-        Run the AGDL algorithm.
+        Run the AGDL algorithm with EXTENSIVE parameter tuning.
         
         Returns:
             List of communities
         """
-        try:
-            # AGDL expects 'weight' as the edge attribute name (default "weight")
-            result = cdlib_algos.agdl(
-                self.G,
-                number_communities=self.number_communities,
-                kc=self.kc
-            )
-            return result.communities
-        except Exception as e:
-            print(f"AGDL algorithm failed: {e}")
-            # Fallback to Louvain
-            from community import community_louvain
-            partition = community_louvain.best_partition(self.G)
-            comm_dict = {}
-            for node, comm_id in partition.items():
-                if comm_id not in comm_dict:
-                    comm_dict[comm_id] = []
-                comm_dict[comm_id].append(node)
-            return list(comm_dict.values())
+        import networkx as nx
+        from cdlib import algorithms as cdlib_algos
+        
+        best_communities = None
+        best_modularity = -1
+        
+        n = self.G.number_of_nodes()
+        
+        # EXTENSIVE parameter search
+        if self.auto_tune:
+            # Try many number_communities values
+            nc_values = [10, 15, 20, 25, 30, 35, 40, int(np.sqrt(n)), int(np.sqrt(n)*1.5)]
+            nc_values = sorted(set([max(2, min(n//3, nc)) for nc in nc_values]))
+            # Try many kc values
+            kc_values = [2, 3, 5, 8, 10, 15, 20]
+            params_to_try = [(nc, kc) for nc in nc_values for kc in kc_values]
+        else:
+            params_to_try = [(self.number_communities, self.kc)]
+        
+        for nc, kc in params_to_try:
+            try:
+                result = cdlib_algos.agdl(
+                    self.G,
+                    number_communities=nc,
+                    kc=kc
+                )
+                communities = result.communities
+                
+                # Calculate modularity
+                try:
+                    mod = nx.community.modularity(self.G, [set(c) for c in communities])
+                    if mod > best_modularity:
+                        best_modularity = mod
+                        best_communities = communities
+                except:
+                    if best_communities is None:
+                        best_communities = communities
+            except:
+                continue
+        
+        if best_communities is not None:
+            return best_communities
+            
+        # Fallback
+        print(f"AGDL algorithm failed, using fallback")
+        from community import community_louvain
+        partition = community_louvain.best_partition(self.G)
+        comm_dict = {}
+        for node, comm_id in partition.items():
+            if comm_id not in comm_dict:
+                comm_dict[comm_id] = []
+            comm_dict[comm_id].append(node)
+        return list(comm_dict.values())
 
 
 @register_algorithm('gdmp2', aliases=['gdmp'])

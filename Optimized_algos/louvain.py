@@ -193,7 +193,8 @@ class LouvainAlgorithm:
         for node, com_id in partition.items():
             if com_id not in clusters:
                 clusters[com_id] = []
-            clusters[com_id].append(str(node))
+            # Preserve original node type (don't convert to string)
+            clusters[com_id].append(node)
         return list(clusters.values())
 
 # ==========================================
