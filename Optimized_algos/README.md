@@ -1,17 +1,19 @@
 # ClusterNet: A Unified Framework for Community Detection
 
-ClusterNet is a comprehensive Python package for community detection in graphs. It provides a unified interface for running various community detection algorithms on directed/undirected and weighted/unweighted graphs.
+ClusterNet is a comprehensive Python package for community detection in graphs. It provides a unified interface for running various community detection algorithms on directed/undirected and weighted/unweighted graphs, including both traditional methods and Graph Neural Networks (GNNs).
 
 ## 🚀 Features
 
 - **Unified API**: Single interface for all algorithms
-- **Multiple Algorithms**: 23+ state-of-the-art community detection algorithms
-- **Algorithm Diversity**: Statistical, physics-based, diffusion, structural, and overlapping methods
+- **36 Algorithms**: Comprehensive collection of community detection methods
+- **Algorithm Diversity**: Traditional, statistical, physics-based, diffusion, structural, overlapping, and GNN methods
+- **GPU Acceleration**: 7 GNN models with full GPU support via PyTorch Geometric
 - **Graph Flexibility**: Handles directed/undirected, weighted/unweighted graphs
 - **Easy to Use**: Simple Python API and command-line interface
 - **Comprehensive Metrics**: Built-in evaluation metrics (NMI, AMI, ARI, Modularity, etc.)
-- **Production Ready**: Well-tested, documented, and optimized
-- **CDlib Integration**: Access to 70+ algorithms from the cdlib library
+- **Robustness Testing**: Built-in perturbation and robustness evaluation framework
+- **Benchmarking Suite**: LFR, SBM, biological networks, and null-model rewiring
+- **CDlib Integration**: Select algorithms from the cdlib library
 
 ## 📦 Installation
 
@@ -27,6 +29,11 @@ pip install -e .
 
 # Or install with all dependencies
 pip install -e ".[all]"
+
+# For GNN models (GPU support)
+pip install torch torchvision torchaudio
+pip install torch-geometric
+pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
 
 # Optional: Install graph-tool for SBM algorithms (requires conda)
 conda install -c conda-forge graph-tool
@@ -89,72 +96,96 @@ clusternet --list-algorithms
 clusternet network.dat louvain --evaluate
 ```
 
-## 🧩 Available Algorithms
+## 🧩 Available Algorithms (36 Total)
 
-### Core Algorithms (9)
+### Summary
 
-| Algorithm | Type | Directed | Weighted | Best For |
-|-----------|------|----------|----------|----------|
-| **Louvain** | Modularity | ✓ | ✓ | General purpose, fast |
-| **Leiden** | Modularity | ✓ | ✓ | Guaranteed connectivity |
-| **CSBIO-IITM2** | Ensemble | ✓ | ✓ | Robust, stable communities |
-| **SCORE** | Spectral | ✓ | ✓ | Directed graphs, degree heterogeneity |
-| **SVT** | Spectral | ✗ | ✓ | Feature-based clustering |
-| **TeamCS** | Hybrid | ✗ | ✓ | Hierarchical structure |
-| **SimNet** | Spectral | ✗ | ✓ | Noisy networks |
-| **Tusk** | Hybrid | ✗ | ✓ | Complex networks |
-| **BiGS2** | Hybrid | ✗ | ✓ | Multi-level communities |
+| Category | Count | GPU Support |
+|----------|-------|-------------|
+| Custom/Classic Algorithms | 16 | ❌ (SimNet has GPU variant) |
+| CDlib Wrappers | 13 | ❌ |
+| GNN Models | 7 | ✅ All |
+| **Total** | **36** | **7 GPU-enabled** |
 
-### igraph/sklearn-Based Algorithms (7)
+---
 
-These algorithms use igraph's highly optimized C implementations or sklearn and match the main.py reference exactly:
+### Custom/Classic Algorithms (16) — CPU Only
 
-| Algorithm | Type | Directed | Weighted | Function Used |
-|-----------|------|----------|----------|---------------|
-| **Walktrap** | Random Walk | ✓ | ✓ | `community_walktrap` |
-| **Fast Greedy** | Modularity | ✓ | ✓ | `community_fastgreedy` |
-| **Spin Glass** | Physics | ✓ | ✓ | `community_spinglass` |
-| **Label Propagation** | Propagation | ✓ | ✓ | `community_label_propagation` |
-| **Leading Eigenvector** | Spectral | ✓ | ✓ | `community_leading_eigenvector` |
-| **Girvan-Newman** | Betweenness | ✓ | ✓ | `nx.community.girvan_newman` |
-| **Spectral Clustering** | Spectral | ✓ | ✓ | `sklearn.SpectralClustering` |
+| # | Algorithm | Registration Name | Type | Directed | Weighted | Backend |
+|---|-----------|-------------------|------|----------|----------|---------|
+| 1 | **Louvain** | `louvain` | Modularity | ✓ | ✓ | Pure Python |
+| 2 | **Leiden** | `leiden` | Modularity | ✓ | ✓ | Pure Python |
+| 3 | **Walktrap** | `walktrap` | Random Walk | ✓ | ✓ | igraph |
+| 4 | **Fast Greedy** | `fastgreedy` | Modularity | ✓ | ✓ | igraph |
+| 5 | **Spin Glass** | `spinglass` | Physics | ✓ | ✓ | igraph |
+| 6 | **Leading Eigenvector** | `leading_eigenvector` | Spectral | ✓ | ✓ | igraph |
+| 7 | **Girvan-Newman** | `girvan_newman` | Betweenness | ✓ | ✓ | NetworkX |
+| 8 | **Label Propagation** | `label_propagation` | Propagation | ✓ | ✓ | igraph |
+| 9 | **Spectral Clustering** | `spectral` | Spectral | ✓ | ✓ | sklearn |
+| 10 | **SVT/Tianle** | `svt` | Spectral | ✗ | ✓ | Custom |
+| 11 | **SCORE** | `score` | Spectral | ✓ | ✓ | Custom |
+| 12 | **TeamCS** | `teamcs` | Hybrid | ✗ | ✓ | Custom |
+| 13 | **SimNet** | `simnet` | Spectral | ✗ | ✓ | Custom (GPU variant exists) |
+| 14 | **Tusk** | `tusk` | Hybrid | ✗ | ✓ | Custom |
+| 15 | **BiGS2** | `bigs2` | Hybrid | ✗ | ✓ | Custom |
+| 16 | **CSBIO-IITM2** | `csbio_iitm2` | Ensemble | ✓ | ✓ | Custom |
 
-> **Note**: All these implementations are identical to `main.py` - they use the same underlying igraph/networkx/sklearn functions with the same parameters.
+> **Note**: Algorithms 3-9 (igraph/sklearn-based) match the `main.py` reference implementation exactly.
 
-### CDlib-Integrated Algorithms (14)
+---
+
+### CDlib Wrappers (13) — CPU Only
 
 #### Statistical Inference (3)
-| Algorithm | Type | Directed | Weighted | Best For |
-|-----------|------|----------|----------|----------|
-| **EM** | Statistical | ✗ | ✗ | Model-based clustering |
-| **SBM** | Statistical | ✓ | ✓ | Stochastic block models |
-| **Nested SBM** | Statistical | ✓ | ✓ | Hierarchical structure inference |
+| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
+|---|-----------|-------------------|----------------|----------|----------|
+| 1 | **EM** | `em` | `cdlib.algorithms.em` | ✗ | ✗ |
+| 2 | **SBM** | `sbm` | `cdlib.algorithms.sbm_dl` | ✓ | ✓ |
+| 3 | **Nested SBM** | `sbm_nested` | `cdlib.algorithms.sbm_dl_nested` | ✓ | ✓ |
 
 #### Physics-Based (3)
-| Algorithm | Type | Directed | Weighted | Best For |
-|-----------|------|----------|----------|----------|
-| **CPM** | Physics | ✓ | ✓ | Resolution-based partitioning |
-| **RB Potts** | Physics | ✓ | ✓ | Energy minimization |
-| **RBER Potts** | Physics | ✗ | ✓ | ER null model |
+| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
+|---|-----------|-------------------|----------------|----------|----------|
+| 4 | **CPM** | `cpm` | `cdlib.algorithms.cpm` | ✓ | ✓ |
+| 5 | **RB Potts** | `rb_pots` | `cdlib.algorithms.rb_pots` | ✓ | ✓ |
+| 6 | **RBER Potts** | `rber_pots` | `cdlib.algorithms.rber_pots` | ✗ | ✓ |
 
 #### Diffusion-Based (2)
-| Algorithm | Type | Directed | Weighted | Best For |
-|-----------|------|----------|----------|----------|
-| **DER** | Diffusion | ✗ | ✓ | Entropy-based detection |
-| **Async Fluid** | Diffusion | ✗ | ✗ | Fast, scalable networks |
+| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
+|---|-----------|-------------------|----------------|----------|----------|
+| 7 | **DER** | `der` | `cdlib.algorithms.der` | ✗ | ✓ |
+| 8 | **Async Fluid** | `async_fluid` | `cdlib.algorithms.async_fluid` | ✗ | ✗ |
 
 #### Structural (3)
-| Algorithm | Type | Directed | Weighted | Best For |
-|-----------|------|----------|----------|----------|
-| **SCAN** | Structural | ✗ | ✗ | Density-based clustering |
-| **AGDL** | Structural | ✗ | ✓ | High-dimensional data |
-| **GDMP2** | Structural | ✗ | ✓ | Graph decomposition |
+| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
+|---|-----------|-------------------|----------------|----------|----------|
+| 9 | **SCAN** | `scan` | `cdlib.algorithms.scan` | ✗ | ✗ |
+| 10 | **AGDL** | `agdl` | `cdlib.algorithms.agdl` | ✗ | ✓ |
+| 11 | **GDMP2** | `gdmp2` | `cdlib.algorithms.gdmp2` | ✗ | ✓ |
 
 #### Overlapping (2)
-| Algorithm | Type | Directed | Weighted | Best For |
-|-----------|------|----------|----------|----------|
-| **Angel** | Overlapping | ✗ | ✗ | Node-centric, fast |
-| **Surprise** | Overlapping | ✗ | ✓ | Quality function optimization |
+| # | Algorithm | Registration Name | CDlib Function | Directed | Weighted |
+|---|-----------|-------------------|----------------|----------|----------|
+| 12 | **Angel** | `angel` | `cdlib.algorithms.angel` | ✗ | ✗ |
+| 13 | **Surprise Communities** | `surprise_communities` | `cdlib.algorithms.surprise_communities` | ✗ | ✓ |
+
+---
+
+### GNN Models (7) — **GPU Enabled** via PyTorch Geometric
+
+| # | Model | Registration Name | Type | Loss Function | Best For |
+|---|-------|-------------------|------|---------------|----------|
+| **Unsupervised** (fair benchmarking - no labels during training) |||||
+| 1 | **GCN** | `gcn_cluster` | Unsupervised | Modularity | General purpose GNN clustering |
+| 2 | **DMoN** | `dmon` | Unsupervised | Modularity + Collapse | Scalable, modularity-driven |
+| 3 | **MinCut** | `mincut` | Unsupervised | MinCut + Orthogonality | Spectral clustering with GNN |
+| 4 | **GIN** | `gin_cluster` | Unsupervised | Modularity | Expressive graph isomorphism |
+| 5 | **Graph Transformer** | `graph_transformer` | Unsupervised | Modularity + Spectral | Attention-based clustering |
+| **Supervised** (uses labels - upper bound comparison) |||||
+| 6 | **GCN Supervised** | `gcn_supervised` | Supervised | Cross-entropy | Semi-supervised benchmarking |
+| 7 | **GAT Supervised** | `gat_supervised` | Supervised | Cross-entropy | Attention-based classification |
+
+> **GPU Note**: All GNN models automatically use CUDA if available. Set `device='cuda'` or `device='cpu'` explicitly.
 
 ## 📖 Usage Examples
 
@@ -480,6 +511,115 @@ detector = CommunityDetector(
 )
 ```
 
+### GNN Models (GPU-Enabled)
+
+All GNN models support GPU acceleration and have similar interfaces:
+
+#### GCN (Unsupervised)
+```python
+from clusternet.gnn.models import GCNCluster
+
+# Using the class interface
+model = GCNCluster(
+    n_clusters=10,
+    hidden_channels=64,
+    num_layers=2,
+    dropout=0.5,
+    lr=0.01,
+    epochs=200,
+    device='cuda'  # or 'cpu'
+)
+communities = model.fit_predict(G, features=X)  # X is node feature matrix
+
+# Or using the function interface
+from clusternet.gnn.models import gcn_clustering
+communities = gcn_clustering(G, n_clusters=10, features=X)
+```
+
+#### DMoN (Unsupervised)
+```python
+from clusternet.gnn.models import DMoNCluster
+
+model = DMoNCluster(
+    n_clusters=10,
+    hidden_channels=64,
+    dropout=0.5,
+    collapse_weight=1.0,
+    device='cuda'
+)
+communities = model.fit_predict(G, features=X)
+```
+
+#### MinCut (Unsupervised)
+```python
+from clusternet.gnn.models import MinCutCluster
+
+model = MinCutCluster(
+    n_clusters=10,
+    hidden_channels=64,
+    orthogonal_weight=1.0,
+    device='cuda'
+)
+communities = model.fit_predict(G, features=X)
+```
+
+#### GIN (Unsupervised)
+```python
+from clusternet.gnn.models import GINCluster
+
+model = GINCluster(
+    n_clusters=10,
+    hidden_channels=64,
+    num_layers=3,
+    eps=0.0,  # GIN epsilon parameter
+    device='cuda'
+)
+communities = model.fit_predict(G, features=X)
+```
+
+#### Graph Transformer (Unsupervised)
+```python
+from clusternet.gnn.models import GraphTransformerCluster
+
+model = GraphTransformerCluster(
+    n_clusters=10,
+    hidden_channels=64,
+    num_heads=4,
+    num_layers=2,
+    device='cuda'
+)
+communities = model.fit_predict(G, features=X)
+```
+
+#### GCN Supervised
+```python
+from clusternet.gnn.models import GCNSupervised
+
+# Requires ground truth labels for training
+model = GCNSupervised(
+    n_classes=10,
+    hidden_channels=64,
+    device='cuda'
+)
+# train_mask specifies which nodes to use for training
+communities = model.fit_predict(G, features=X, labels=y, train_mask=mask)
+```
+
+#### GAT Supervised
+```python
+from clusternet.gnn.models import GATSupervised
+
+model = GATSupervised(
+    n_classes=10,
+    hidden_channels=64,
+    num_heads=8,
+    device='cuda'
+)
+communities = model.fit_predict(G, features=X, labels=y, train_mask=mask)
+```
+
+> **Note**: For GNNs without node features, degree-based or one-hot features are generated automatically.
+
 ## 📊 Evaluation Metrics
 
 ClusterNet provides comprehensive evaluation metrics:
@@ -549,6 +689,84 @@ Community 3 (size=3): 8 9 10
 1	0.5	1	2	3	4
 2	0.5	5	6	7
 3	0.5	8	9	10
+```
+
+## 🔬 Benchmarking & Robustness
+
+ClusterNet includes comprehensive benchmarking and robustness evaluation tools.
+
+### Synthetic Benchmark Generation
+
+```python
+from clusternet.benchmarks.synthetic import LFRGenerator, SBMGenerator
+
+# Generate LFR benchmark graph
+lfr = LFRGenerator(
+    n=1000,           # Number of nodes
+    tau1=3,           # Power-law exponent for degree distribution
+    tau2=1.5,         # Power-law exponent for community sizes
+    mu=0.1,           # Mixing parameter
+    min_community=20  # Minimum community size
+)
+G, ground_truth = lfr.generate()
+
+# Generate SBM benchmark
+sbm = SBMGenerator(
+    sizes=[100, 150, 200],  # Community sizes
+    p_in=0.3,               # Intra-community edge probability
+    p_out=0.01              # Inter-community edge probability
+)
+G, ground_truth = sbm.generate()
+```
+
+### Null Model Rewiring (Real Networks)
+
+```python
+from clusternet.benchmarks.rewired import NullModelRewirer
+
+# Preserve different levels of network properties while weakening community structure
+rewirer = NullModelRewirer(G, communities)
+
+# 1k: Preserve degree sequence only
+G_1k = rewirer.weaken_1k(strength=0.5)
+
+# 2k: Preserve degree correlations
+G_2k = rewirer.weaken_2k(strength=0.5)
+
+# 2.5k: Preserve clustering coefficient
+G_25k = rewirer.weaken_2_5k(strength=0.5)
+
+# 3k: Preserve full degree-dependent clustering
+G_3k = rewirer.weaken_3k(strength=0.5)
+```
+
+### Robustness Evaluation
+
+```python
+from clusternet.robustness import RobustnessEvaluator, EdgePerturbation
+
+# Create evaluator
+evaluator = RobustnessEvaluator(
+    algorithms=['louvain', 'leiden', 'gcn_cluster'],
+    metrics=['nmi', 'ari', 'modularity']
+)
+
+# Test robustness to edge removal
+results = evaluator.evaluate(
+    G, 
+    ground_truth,
+    perturbation=EdgePerturbation(removal_rate=0.1)
+)
+```
+
+### Biological Network Analysis
+
+```python
+from clusternet.benchmarks.biological import MotifAnalyzer
+
+# Analyze motif enrichment in detected communities
+analyzer = MotifAnalyzer(G, communities)
+enrichment = analyzer.compute_enrichment(motif_size=3)
 ```
 
 ## 🛠️ Development
@@ -722,6 +940,19 @@ Please cite the original papers when using specific algorithms.
 ### Overlapping Algorithms
 - Rossetti (2019). "Exorcising the Demon: Angel, Efficient Node-Centric Community Discovery"
 - Aldecoa & Marín (2013). "Surprise maximization reveals community structure"
+
+### GNN-Based Methods
+- Kipf & Welling (2017). "Semi-Supervised Classification with Graph Convolutional Networks" (GCN)
+- Veličković et al. (2018). "Graph Attention Networks" (GAT)
+- Xu et al. (2019). "How Powerful are Graph Neural Networks?" (GIN)
+- Tsitsulin et al. (2020). "Graph Clustering with Graph Neural Networks" (DMoN)
+- Bianchi et al. (2020). "Spectral Clustering with Graph Neural Networks for Graph Pooling" (MinCut)
+- Dwivedi & Bresson (2020). "A Generalization of Transformer Networks to Graphs" (Graph Transformer)
+
+### Benchmarking
+- Lancichinetti et al. (2008). "Benchmark graphs for testing community detection algorithms" (LFR)
+- Holland et al. (1983). "Stochastic blockmodels" (SBM)
+- Orsini et al. (2015). "Quantifying randomness in real networks" (Null Models)
 
 ### Framework
 - Rossetti et al. (2019). "CDlib: a Python Library to Extract, Compare and Evaluate Communities"
