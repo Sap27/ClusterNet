@@ -1,0 +1,211 @@
+{
+  "benchmark": "hierarchical",
+  "config": {
+    "name": "hierarchical",
+    "description": "Test detection of hierarchical (nested) community structure",
+    "network_size": 5000,
+    "mu1_values": [
+      0.1,
+      0.2,
+      0.3
+    ],
+    "mu2_values": [
+      0.1,
+      0.2,
+      0.3
+    ],
+    "realizations": 2,
+    "binary": "hierarchical/hbenchmark",
+    "params": {
+      "k": 20,
+      "maxk": 100,
+      "minc": 10,
+      "maxc": 100,
+      "minC": 200,
+      "maxC": 1000
+    }
+  },
+  "networks": [
+    {
+      "name": "mu1_0.1_mu2_0.1_r0",
+      "mu1": 0.1,
+      "mu2": 0.1,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 46996,
+      "micro_communities": 130,
+      "macro_communities": 8
+    },
+    {
+      "name": "mu1_0.1_mu2_0.1_r1",
+      "mu1": 0.1,
+      "mu2": 0.1,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 47935,
+      "micro_communities": 120,
+      "macro_communities": 8
+    },
+    {
+      "name": "mu1_0.1_mu2_0.2_r0",
+      "mu1": 0.1,
+      "mu2": 0.2,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 47912,
+      "micro_communities": 130,
+      "macro_communities": 12
+    },
+    {
+      "name": "mu1_0.1_mu2_0.2_r1",
+      "mu1": 0.1,
+      "mu2": 0.2,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 48359,
+      "micro_communities": 119,
+      "macro_communities": 9
+    },
+    {
+      "name": "mu1_0.1_mu2_0.3_r0",
+      "mu1": 0.1,
+      "mu2": 0.3,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 47859,
+      "micro_communities": 126,
+      "macro_communities": 9
+    },
+    {
+      "name": "mu1_0.1_mu2_0.3_r1",
+      "mu1": 0.1,
+      "mu2": 0.3,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 48083,
+      "micro_communities": 122,
+      "macro_communities": 12
+    },
+    {
+      "name": "mu1_0.2_mu2_0.1_r0",
+      "mu1": 0.2,
+      "mu2": 0.1,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 47798,
+      "micro_communities": 135,
+      "macro_communities": 10
+    },
+    {
+      "name": "mu1_0.2_mu2_0.1_r1",
+      "mu1": 0.2,
+      "mu2": 0.1,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 47588,
+      "micro_communities": 108,
+      "macro_communities": 11
+    },
+    {
+      "name": "mu1_0.2_mu2_0.2_r0",
+      "mu1": 0.2,
+      "mu2": 0.2,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 46878,
+      "micro_communities": 126,
+      "macro_communities": 11
+    },
+    {
+      "name": "mu1_0.2_mu2_0.2_r1",
+      "mu1": 0.2,
+      "mu2": 0.2,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 46443,
+      "micro_communities": 119,
+      "macro_communities": 9
+    },
+    {
+      "name": "mu1_0.2_mu2_0.3_r0",
+      "mu1": 0.2,
+      "mu2": 0.3,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 48050,
+      "micro_communities": 132,
+      "macro_communities": 7
+    },
+    {
+      "name": "mu1_0.2_mu2_0.3_r1",
+      "mu1": 0.2,
+      "mu2": 0.3,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 46445,
+      "micro_communities": 124,
+      "macro_communities": 12
+    },
+    {
+      "name": "mu1_0.3_mu2_0.1_r0",
+      "mu1": 0.3,
+      "mu2": 0.1,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 48519,
+      "micro_communities": 124,
+      "macro_communities": 8
+    },
+    {
+      "name": "mu1_0.3_mu2_0.1_r1",
+      "mu1": 0.3,
+      "mu2": 0.1,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 48339,
+      "micro_communities": 112,
+      "macro_communities": 10
+    },
+    {
+      "name": "mu1_0.3_mu2_0.2_r0",
+      "mu1": 0.3,
+      "mu2": 0.2,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 48961,
+      "micro_communities": 133,
+      "macro_communities": 9
+    },
+    {
+      "name": "mu1_0.3_mu2_0.2_r1",
+      "mu1": 0.3,
+      "mu2": 0.2,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 48606,
+      "micro_communities": 133,
+      "macro_communities": 11
+    },
+    {
+      "name": "mu1_0.3_mu2_0.3_r0",
+      "mu1": 0.3,
+      "mu2": 0.3,
+      "realization": 0,
+      "nodes": 5000,
+      "edges": 47467,
+      "micro_communities": 135,
+      "macro_communities": 7
+    },
+    {
+      "name": "mu1_0.3_mu2_0.3_r1",
+      "mu1": 0.3,
+      "mu2": 0.3,
+      "realization": 1,
+      "nodes": 5000,
+      "edges": 46948,
+      "micro_communities": 127,
+      "macro_communities": 10
+    }
+  ],
+  "timestamp": "2026-01-06T23:41:48.024431"
+}

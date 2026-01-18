@@ -116,7 +116,7 @@ class SCOREAlgorithm:
     def _format_output(self, labels):
         clusters = {}
         for i, label in enumerate(labels):
-            node_name = str(self.nodes[i])
+            node_name = self.nodes[i]  # Keep original node type (int or str)
             if label not in clusters:
                 clusters[label] = []
             clusters[label].append(node_name)

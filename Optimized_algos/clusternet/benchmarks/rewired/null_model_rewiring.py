@@ -766,3 +766,11 @@ def compute_mixing_parameter(G: nx.Graph, communities: List[List]) -> float:
     
     return inter_edges / total_edges if total_edges > 0 else 0.0
 
+
+
+
+
+
+
+
+

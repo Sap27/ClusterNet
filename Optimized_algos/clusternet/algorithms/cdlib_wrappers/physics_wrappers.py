@@ -1,10 +1,48 @@
 """
 Physics-inspired community detection algorithm wrappers from cdlib.
+
+NOTE: These wrappers remap nodes to 0-indexed before running cdlib algorithms
+and remap results back to original node IDs to fix cdlib's node mapping issues.
 """
 
+import networkx as nx
 from cdlib import algorithms as cdlib_algos
 from clusternet.base import BaseAlgorithm
 from clusternet.registry import register_algorithm
+
+
+def _remap_graph_to_sequential(G):
+    """
+    Remap graph nodes to sequential integers 0, 1, 2, ...
+    
+    Returns:
+        G_remapped: New graph with sequential node IDs
+        idx_to_original: Dict mapping sequential index to original node ID
+        original_to_idx: Dict mapping original node ID to sequential index
+    """
+    nodes = list(G.nodes())
+    original_to_idx = {node: idx for idx, node in enumerate(nodes)}
+    idx_to_original = {idx: node for idx, node in enumerate(nodes)}
+    
+    # Create new graph with sequential node IDs
+    G_remapped = nx.Graph()
+    G_remapped.add_nodes_from(range(len(nodes)))
+    
+    for u, v, data in G.edges(data=True):
+        G_remapped.add_edge(original_to_idx[u], original_to_idx[v], **data)
+    
+    return G_remapped, idx_to_original, original_to_idx
+
+
+def _remap_communities_to_original(communities, idx_to_original):
+    """
+    Remap community node IDs from sequential indices back to original node IDs.
+    """
+    remapped = []
+    for comm in communities:
+        remapped_comm = [idx_to_original[idx] for idx in comm]
+        remapped.append(remapped_comm)
+    return remapped
 
 
 @register_algorithm('cpm', aliases=['constant_potts_model'])
@@ -13,10 +51,12 @@ class CPMWrapper(BaseAlgorithm):
     Constant Potts Model (CPM) for community detection.
     
     CPM uses the Potts model from statistical physics with a resolution parameter
-    to control community granularity. Similar to Leiden but with different optimization.
+    to control community granularity.
     
     Parameters:
-        resolution_parameter: Resolution parameter (default: 1.0)
+        resolution_parameter: Resolution parameter (default: 0.1)
+            Lower values = fewer, larger communities
+            Higher values = more, smaller communities
     
     Reference:
         Traag, V. A., Van Dooren, P., & Nesterov, Y. (2011). Narrow scope for 
@@ -26,13 +66,13 @@ class CPMWrapper(BaseAlgorithm):
     SUPPORTS_DIRECTED = True
     SUPPORTS_WEIGHTED = True
     
-    def __init__(self, G, resolution_parameter=1.0, **kwargs):
+    def __init__(self, G, resolution_parameter=0.1, **kwargs):
         """
         Initialize CPM algorithm.
         
         Args:
             G: NetworkX graph
-            resolution_parameter: Resolution parameter
+            resolution_parameter: Resolution parameter (default: 0.1)
             **kwargs: Additional parameters
         """
         super().__init__(G, **kwargs)
@@ -44,40 +84,29 @@ class CPMWrapper(BaseAlgorithm):
         Run the CPM algorithm.
         
         Returns:
-            List of communities
+            List of communities with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         try:
-            result = cdlib_algos.cpm(self.G, resolution_parameter=self.resolution_parameter)
-            return result.communities
+            result = cdlib_algos.cpm(G_remapped, resolution_parameter=self.resolution_parameter)
+            # Remap communities back to original node IDs
+            return _remap_communities_to_original(result.communities, idx_to_original)
         except Exception as e:
             print(f"CPM algorithm failed: {e}")
-            # Fallback to Leiden with same resolution
-            try:
-                import leidenalg
-                import igraph as ig
-                # Convert to igraph
-                g = ig.Graph.TupleList(self.G.edges(), directed=self.directed)
-                partition = leidenalg.find_partition(
-                    g, 
-                    leidenalg.CPMVertexPartition,
-                    resolution_parameter=self.resolution_parameter
-                )
-                communities = []
-                for comm in partition:
-                    communities.append([g.vs[i]['name'] for i in comm])
-                return communities
-            except:
-                from community import community_louvain
-                partition = community_louvain.best_partition(
-                    self.G.to_undirected(), 
-                    resolution=self.resolution_parameter
-                )
-                comm_dict = {}
-                for node, comm_id in partition.items():
-                    if comm_id not in comm_dict:
-                        comm_dict[comm_id] = []
-                    comm_dict[comm_id].append(node)
-                return list(comm_dict.values())
+            # Fallback to Louvain
+            from community import community_louvain
+            partition = community_louvain.best_partition(
+                self.G.to_undirected() if self.directed else self.G,
+                resolution=self.resolution_parameter
+            )
+            comm_dict = {}
+            for node, comm_id in partition.items():
+                if comm_id not in comm_dict:
+                    comm_dict[comm_id] = []
+                comm_dict[comm_id].append(node)
+            return list(comm_dict.values())
 
 
 @register_algorithm('rb_pots', aliases=['reichardt_bornholdt_pots'])
@@ -90,7 +119,6 @@ class RBPotsWrapper(BaseAlgorithm):
     
     Parameters:
         resolution_parameter: Resolution parameter (default: 1.0)
-        weights: Edge weights (default: None, uses 'weight' attribute if present)
     
     Reference:
         Reichardt, J., & Bornholdt, S. (2006). Statistical mechanics of community 
@@ -121,40 +149,33 @@ class RBPotsWrapper(BaseAlgorithm):
         Run the RB Potts algorithm.
         
         Returns:
-            List of communities
+            List of communities with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         try:
             result = cdlib_algos.rb_pots(
-                self.G,
+                G_remapped,
                 resolution_parameter=self.resolution_parameter,
                 weights=self.weights
             )
-            return result.communities
+            # Remap communities back to original node IDs
+            return _remap_communities_to_original(result.communities, idx_to_original)
         except Exception as e:
             print(f"RB Potts algorithm failed: {e}")
-            # Fallback to Leiden
-            try:
-                import leidenalg
-                import igraph as ig
-                g = ig.Graph.TupleList(self.G.edges(), directed=self.directed)
-                partition = leidenalg.find_partition(
-                    g,
-                    leidenalg.RBConfigurationVertexPartition,
-                    resolution_parameter=self.resolution_parameter
-                )
-                communities = []
-                for comm in partition:
-                    communities.append([g.vs[i]['name'] for i in comm])
-                return communities
-            except:
-                from community import community_louvain
-                partition = community_louvain.best_partition(self.G.to_undirected())
-                comm_dict = {}
-                for node, comm_id in partition.items():
-                    if comm_id not in comm_dict:
-                        comm_dict[comm_id] = []
-                    comm_dict[comm_id].append(node)
-                return list(comm_dict.values())
+            # Fallback to Louvain
+            from community import community_louvain
+            partition = community_louvain.best_partition(
+                self.G.to_undirected() if self.directed else self.G,
+                resolution=self.resolution_parameter
+            )
+            comm_dict = {}
+            for node, comm_id in partition.items():
+                if comm_id not in comm_dict:
+                    comm_dict[comm_id] = []
+                comm_dict[comm_id].append(node)
+            return list(comm_dict.values())
 
 
 @register_algorithm('rber_pots', aliases=['reichardt_bornholdt_er_pots'])
@@ -167,8 +188,6 @@ class RBERPotsWrapper(BaseAlgorithm):
     
     Parameters:
         resolution_parameter: Resolution parameter (default: 1.0)
-        weights: Edge weights (default: None, uses 'weight' attribute if present)
-        node_sizes: Node sizes for aggregate graphs (default: None)
     
     Reference:
         Reichardt, J., & Bornholdt, S. (2006). Statistical mechanics of community 
@@ -202,26 +221,30 @@ class RBERPotsWrapper(BaseAlgorithm):
         Run the RBER Potts algorithm.
         
         Returns:
-            List of communities
+            List of communities with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         try:
             result = cdlib_algos.rber_pots(
-                self.G,
+                G_remapped,
                 resolution_parameter=self.resolution_parameter,
                 weights=self.weights,
                 node_sizes=self.node_sizes
             )
-            return result.communities
+            # Remap communities back to original node IDs
+            return _remap_communities_to_original(result.communities, idx_to_original)
         except Exception as e:
             print(f"RBER Potts algorithm failed: {e}")
-            # Fallback to RB Pots
+            # Fallback to RB Pots with remapping
             try:
                 result = cdlib_algos.rb_pots(
-                    self.G,
+                    G_remapped,
                     resolution_parameter=self.resolution_parameter,
                     weights=self.weights
                 )
-                return result.communities
+                return _remap_communities_to_original(result.communities, idx_to_original)
             except:
                 from community import community_louvain
                 partition = community_louvain.best_partition(self.G.to_undirected())
@@ -267,33 +290,23 @@ class SurpriseCommunitiesWrapper(BaseAlgorithm):
         Run the Surprise Communities algorithm.
         
         Returns:
-            List of communities (disjoint)
+            List of communities (disjoint) with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         try:
-            result = cdlib_algos.surprise_communities(self.G)
-            return result.communities
+            result = cdlib_algos.surprise_communities(G_remapped)
+            # Remap communities back to original node IDs
+            return _remap_communities_to_original(result.communities, idx_to_original)
         except Exception as e:
             print(f"Surprise Communities algorithm failed: {e}")
-            # Fallback to Leiden (also optimizes quality function)
-            try:
-                import leidenalg
-                import igraph as ig
-                g = ig.Graph.TupleList(self.G.edges(), directed=False)
-                partition = leidenalg.find_partition(
-                    g,
-                    leidenalg.ModularityVertexPartition
-                )
-                communities = []
-                for comm in partition:
-                    communities.append([g.vs[i]['name'] for i in comm])
-                return communities
-            except:
-                from community import community_louvain
-                partition = community_louvain.best_partition(self.G)
-                comm_dict = {}
-                for node, comm_id in partition.items():
-                    if comm_id not in comm_dict:
-                        comm_dict[comm_id] = []
-                    comm_dict[comm_id].append(node)
-                return list(comm_dict.values())
-
+            # Fallback to Louvain
+            from community import community_louvain
+            partition = community_louvain.best_partition(self.G)
+            comm_dict = {}
+            for node, comm_id in partition.items():
+                if comm_id not in comm_dict:
+                    comm_dict[comm_id] = []
+                comm_dict[comm_id].append(node)
+            return list(comm_dict.values())

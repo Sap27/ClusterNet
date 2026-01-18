@@ -1,11 +1,49 @@
 """
 Overlapping community detection algorithm wrappers from cdlib.
+
+NOTE: These wrappers remap nodes to 0-indexed before running cdlib algorithms
+and remap results back to original node IDs to fix cdlib's node mapping issues.
 """
 
+import networkx as nx
 from cdlib import algorithms as cdlib_algos
 from clusternet.base import BaseAlgorithm
 from clusternet.registry import register_algorithm
 import numpy as np
+
+
+def _remap_graph_to_sequential(G):
+    """
+    Remap graph nodes to sequential integers 0, 1, 2, ...
+    
+    Returns:
+        G_remapped: New graph with sequential node IDs
+        idx_to_original: Dict mapping sequential index to original node ID
+        original_to_idx: Dict mapping original node ID to sequential index
+    """
+    nodes = list(G.nodes())
+    original_to_idx = {node: idx for idx, node in enumerate(nodes)}
+    idx_to_original = {idx: node for idx, node in enumerate(nodes)}
+    
+    # Create new graph with sequential node IDs
+    G_remapped = nx.Graph()
+    G_remapped.add_nodes_from(range(len(nodes)))
+    
+    for u, v, data in G.edges(data=True):
+        G_remapped.add_edge(original_to_idx[u], original_to_idx[v], **data)
+    
+    return G_remapped, idx_to_original, original_to_idx
+
+
+def _remap_communities_to_original(communities, idx_to_original):
+    """
+    Remap community node IDs from sequential indices back to original node IDs.
+    """
+    remapped = []
+    for comm in communities:
+        remapped_comm = [idx_to_original[idx] for idx in comm]
+        remapped.append(remapped_comm)
+    return remapped
 
 
 @register_algorithm('angel', aliases=['demon_successor'])
@@ -54,8 +92,11 @@ class AngelWrapper(BaseAlgorithm):
         Run the Angel algorithm with smart fallbacks.
         
         Returns:
-            List of communities (may be overlapping)
+            List of communities (may be overlapping) with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         n = self.G.number_of_nodes()
         expected_min_comms = max(2, int(np.sqrt(n) / 3))
         
@@ -70,7 +111,7 @@ class AngelWrapper(BaseAlgorithm):
         for thresh in thresholds_to_try:
             try:
                 result = cdlib_algos.angel(
-                    self.G,
+                    G_remapped,
                     threshold=thresh,
                     min_community_size=self.min_community_size
                 )
@@ -93,7 +134,7 @@ class AngelWrapper(BaseAlgorithm):
         
         # If we have good results, return them
         if best_communities is not None and len(best_communities) >= expected_min_comms:
-            return best_communities
+            return _remap_communities_to_original(best_communities, idx_to_original)
         
         # Try DEMON as fallback (predecessor of Angel, sometimes works better)
         if self.use_demon_fallback:
@@ -101,12 +142,12 @@ class AngelWrapper(BaseAlgorithm):
                 for epsilon in [0.25, 0.5, 0.75]:
                     try:
                         result = cdlib_algos.demon(
-                            self.G, 
+                            G_remapped, 
                             epsilon=epsilon,
                             min_community_size=self.min_community_size
                         )
                         if len(result.communities) >= expected_min_comms:
-                            return result.communities
+                            return _remap_communities_to_original(result.communities, idx_to_original)
                         if best_communities is None or len(result.communities) > len(best_communities):
                             best_communities = result.communities
                     except:
@@ -116,12 +157,11 @@ class AngelWrapper(BaseAlgorithm):
         
         # If we have any result, return it
         if best_communities is not None:
-            return best_communities
+            return _remap_communities_to_original(best_communities, idx_to_original)
         
         # Ultimate fallback to label propagation
         print(f"Angel/DEMON algorithms failed, using label propagation fallback")
         try:
-            import networkx as nx
             communities_gen = nx.community.label_propagation_communities(self.G)
             return [list(c) for c in communities_gen]
         except:
@@ -179,23 +219,25 @@ class DEMONWrapper(BaseAlgorithm):
         Run the DEMON algorithm.
         
         Returns:
-            List of communities (overlapping)
+            List of communities (overlapping) with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         try:
             result = cdlib_algos.demon(
-                self.G,
+                G_remapped,
                 epsilon=self.epsilon,
                 min_com_size=self.min_com_size
             )
-            return result.communities
+            return _remap_communities_to_original(result.communities, idx_to_original)
         except Exception as e:
             print(f"DEMON algorithm failed: {e}")
             # Fallback to Angel
             try:
-                result = cdlib_algos.angel(self.G, threshold=0.5, min_community_size=self.min_com_size)
-                return result.communities
+                result = cdlib_algos.angel(G_remapped, threshold=0.5, min_community_size=self.min_com_size)
+                return _remap_communities_to_original(result.communities, idx_to_original)
             except:
-                import networkx as nx
                 communities_gen = nx.community.label_propagation_communities(self.G)
                 return [list(c) for c in communities_gen]
 
@@ -240,29 +282,33 @@ class KCliqueWrapper(BaseAlgorithm):
         Run the k-Clique Percolation algorithm.
         
         Returns:
-            List of communities (overlapping)
+            List of communities (overlapping) with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         try:
-            result = cdlib_algos.kclique(self.G, k=self.k)
+            result = cdlib_algos.kclique(G_remapped, k=self.k)
             communities = result.communities
             
             # If no communities found, try smaller k
             if not communities and self.k > 3:
-                result = cdlib_algos.kclique(self.G, k=3)
+                result = cdlib_algos.kclique(G_remapped, k=3)
                 communities = result.communities
             
-            return communities if communities else [[n] for n in self.G.nodes()]
+            if communities:
+                return _remap_communities_to_original(communities, idx_to_original)
+            else:
+                return [[n] for n in self.G.nodes()]
             
         except Exception as e:
             print(f"k-Clique algorithm failed: {e}")
             # Fallback to NetworkX k-clique communities
             try:
-                import networkx as nx
                 from networkx.algorithms.community import k_clique_communities
                 communities = list(k_clique_communities(self.G, self.k))
                 return [list(c) for c in communities] if communities else [[n] for n in self.G.nodes()]
             except:
                 # Ultimate fallback
-                import networkx as nx
                 communities_gen = nx.community.label_propagation_communities(self.G)
                 return [list(c) for c in communities_gen]

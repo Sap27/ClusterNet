@@ -34,7 +34,7 @@ class TeamCSWrapper(BaseAlgorithm):
     SUPPORTS_WEIGHTED = True
     
     def __init__(self, G, recursive=True, size_threshold=100, min_size=3, 
-                 percentile=40, n_jobs_outer=-1, n_jobs_inner=1, **kwargs):
+                 percentile=40, n_jobs_outer=-1, n_jobs_inner=1,weighted=True, directed=False, **kwargs):
         """
         Initialize TeamCS algorithm.
         
@@ -55,7 +55,8 @@ class TeamCSWrapper(BaseAlgorithm):
         self.percentile = percentile
         self.n_jobs_outer = n_jobs_outer
         self.n_jobs_inner = n_jobs_inner
-        
+        self.weighted = weighted
+        self.directed = directed
         self.params.update({
             'recursive': recursive,
             'size_threshold': size_threshold,
@@ -79,7 +80,9 @@ class TeamCSWrapper(BaseAlgorithm):
             min_size=self.min_size,
             percentile=self.percentile,
             n_jobs_outer=self.n_jobs_outer,
-            n_jobs_inner=self.n_jobs_inner
+            n_jobs_inner=self.n_jobs_inner,
+            weighted=self.weighted,
+            directed=self.directed
         )
         
         return communities

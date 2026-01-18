@@ -333,3 +333,11 @@ def generate_lfr_suite(
     
     return benchmarks
 
+
+
+
+
+
+
+
+

@@ -1,12 +1,49 @@
 """
 Statistical inference-based community detection algorithm wrappers.
 Uses graph-tool directly for SBM methods (bypassing cdlib's buggy interface).
+
+NOTE: EM wrapper remaps nodes to 0-indexed before running cdlib algorithms
+and remaps results back to original node IDs to fix cdlib's node mapping issues.
 """
 
 from clusternet.base import BaseAlgorithm
 from clusternet.registry import register_algorithm
 import networkx as nx
 import numpy as np
+
+
+def _remap_graph_to_sequential(G):
+    """
+    Remap graph nodes to sequential integers 0, 1, 2, ...
+    
+    Returns:
+        G_remapped: New graph with sequential node IDs
+        idx_to_original: Dict mapping sequential index to original node ID
+        original_to_idx: Dict mapping original node ID to sequential index
+    """
+    nodes = list(G.nodes())
+    original_to_idx = {node: idx for idx, node in enumerate(nodes)}
+    idx_to_original = {idx: node for idx, node in enumerate(nodes)}
+    
+    # Create new graph with sequential node IDs
+    G_remapped = nx.Graph()
+    G_remapped.add_nodes_from(range(len(nodes)))
+    
+    for u, v, data in G.edges(data=True):
+        G_remapped.add_edge(original_to_idx[u], original_to_idx[v], **data)
+    
+    return G_remapped, idx_to_original, original_to_idx
+
+
+def _remap_communities_to_original(communities, idx_to_original):
+    """
+    Remap community node IDs from sequential indices back to original node IDs.
+    """
+    remapped = []
+    for comm in communities:
+        remapped_comm = [idx_to_original[idx] for idx in comm]
+        remapped.append(remapped_comm)
+    return remapped
 
 
 @register_algorithm('em', aliases=['expectation_maximization'])
@@ -46,6 +83,9 @@ class EMWrapper(BaseAlgorithm):
     def run(self):
         from cdlib import algorithms as cdlib_algos
         
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         best_communities = None
         best_modularity = -1
         
@@ -64,14 +104,14 @@ class EMWrapper(BaseAlgorithm):
         
         for k in k_values:
             try:
-                result = cdlib_algos.em(self.G, k=k)
+                result = cdlib_algos.em(G_remapped, k=k)
                 communities = result.communities
                 
                 # Filter empty communities
                 communities = [c for c in communities if len(c) > 0]
                 
                 try:
-                    mod = nx.community.modularity(self.G, [set(c) for c in communities])
+                    mod = nx.community.modularity(G_remapped, [set(c) for c in communities])
                     if mod > best_modularity:
                         best_modularity = mod
                         best_communities = communities
@@ -82,17 +122,18 @@ class EMWrapper(BaseAlgorithm):
                 continue
         
         if best_communities is not None:
-            return best_communities
+            # Remap back to original node IDs
+            return _remap_communities_to_original(best_communities, idx_to_original)
             
         # Fallback
         print(f"EM algorithm failed, using fallback")
         try:
-            result = cdlib_algos.infomap(self.G)
-            return result.communities
+            result = cdlib_algos.infomap(G_remapped)
+            return _remap_communities_to_original(result.communities, idx_to_original)
         except:
             try:
-                result = cdlib_algos.louvain(self.G)
-                return result.communities
+                result = cdlib_algos.louvain(G_remapped)
+                return _remap_communities_to_original(result.communities, idx_to_original)
             except:
                 return [[node] for node in self.G.nodes()]
 

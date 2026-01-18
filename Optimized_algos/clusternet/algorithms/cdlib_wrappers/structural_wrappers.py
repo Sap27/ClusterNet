@@ -1,11 +1,49 @@
 """
 Structural community detection algorithm wrappers from cdlib.
+
+NOTE: These wrappers remap nodes to 0-indexed before running cdlib algorithms
+and remap results back to original node IDs to fix cdlib's node mapping issues.
 """
 
 import numpy as np
+import networkx as nx
 from cdlib import algorithms as cdlib_algos
 from clusternet.base import BaseAlgorithm
 from clusternet.registry import register_algorithm
+
+
+def _remap_graph_to_sequential(G):
+    """
+    Remap graph nodes to sequential integers 0, 1, 2, ...
+    
+    Returns:
+        G_remapped: New graph with sequential node IDs
+        idx_to_original: Dict mapping sequential index to original node ID
+        original_to_idx: Dict mapping original node ID to sequential index
+    """
+    nodes = list(G.nodes())
+    original_to_idx = {node: idx for idx, node in enumerate(nodes)}
+    idx_to_original = {idx: node for idx, node in enumerate(nodes)}
+    
+    # Create new graph with sequential node IDs
+    G_remapped = nx.Graph()
+    G_remapped.add_nodes_from(range(len(nodes)))
+    
+    for u, v, data in G.edges(data=True):
+        G_remapped.add_edge(original_to_idx[u], original_to_idx[v], **data)
+    
+    return G_remapped, idx_to_original, original_to_idx
+
+
+def _remap_communities_to_original(communities, idx_to_original):
+    """
+    Remap community node IDs from sequential indices back to original node IDs.
+    """
+    remapped = []
+    for comm in communities:
+        remapped_comm = [idx_to_original[idx] for idx in comm]
+        remapped.append(remapped_comm)
+    return remapped
 
 
 @register_algorithm('scan', aliases=['structural_clustering'])
@@ -49,21 +87,24 @@ class SCANWrapper(BaseAlgorithm):
         Run the SCAN algorithm.
         
         Returns:
-            List of communities
+            List of communities with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, original_to_idx = _remap_graph_to_sequential(self.G)
+        
         try:
-            result = cdlib_algos.scan(self.G, epsilon=self.epsilon, mu=self.mu)
+            result = cdlib_algos.scan(G_remapped, epsilon=self.epsilon, mu=self.mu)
             # Filter out single-node communities (outliers)
             communities = [c for c in result.communities if len(c) > 1]
             if not communities:
                 # If all are outliers, return original result
                 communities = result.communities
-            return communities
+            # Remap back to original node IDs
+            return _remap_communities_to_original(communities, idx_to_original)
         except Exception as e:
             print(f"SCAN algorithm failed: {e}")
             # Fallback to label propagation
             try:
-                import networkx as nx
                 communities_gen = nx.community.label_propagation_communities(self.G)
                 return [list(c) for c in communities_gen]
             except:
@@ -111,15 +152,12 @@ class AGDLWrapper(BaseAlgorithm):
             **kwargs: Additional parameters
         """
         super().__init__(G, **kwargs)
-        import numpy as np
         
         n = G.number_of_nodes()
         m = G.number_of_edges()
-        avg_degree = 2 * m / n if n > 0 else 1
         
         if number_communities is None:
             # Better estimation: use modularity-based heuristic
-            # For LFR with n=1000, expect ~20-30 communities
             self.number_communities = max(2, int(np.sqrt(n)))
         else:
             self.number_communities = number_communities
@@ -136,10 +174,10 @@ class AGDLWrapper(BaseAlgorithm):
         Run the AGDL algorithm with EXTENSIVE parameter tuning.
         
         Returns:
-            List of communities
+            List of communities with original node IDs
         """
-        import networkx as nx
-        from cdlib import algorithms as cdlib_algos
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
         
         best_communities = None
         best_modularity = -1
@@ -160,15 +198,15 @@ class AGDLWrapper(BaseAlgorithm):
         for nc, kc in params_to_try:
             try:
                 result = cdlib_algos.agdl(
-                    self.G,
+                    G_remapped,
                     number_communities=nc,
                     kc=kc
                 )
                 communities = result.communities
                 
-                # Calculate modularity
+                # Calculate modularity using remapped graph
                 try:
-                    mod = nx.community.modularity(self.G, [set(c) for c in communities])
+                    mod = nx.community.modularity(G_remapped, [set(c) for c in communities])
                     if mod > best_modularity:
                         best_modularity = mod
                         best_communities = communities
@@ -179,7 +217,8 @@ class AGDLWrapper(BaseAlgorithm):
                 continue
         
         if best_communities is not None:
-            return best_communities
+            # Remap back to original node IDs
+            return _remap_communities_to_original(best_communities, idx_to_original)
             
         # Fallback
         print(f"AGDL algorithm failed, using fallback")
@@ -230,11 +269,15 @@ class GDMP2Wrapper(BaseAlgorithm):
         Run the GDMP2 algorithm.
         
         Returns:
-            List of communities
+            List of communities with original node IDs
         """
+        # Remap nodes to sequential 0, 1, 2, ...
+        G_remapped, idx_to_original, _ = _remap_graph_to_sequential(self.G)
+        
         try:
-            result = cdlib_algos.gdmp2(self.G, min_threshold=self.min_threshold)
-            return result.communities
+            result = cdlib_algos.gdmp2(G_remapped, min_threshold=self.min_threshold)
+            # Remap back to original node IDs
+            return _remap_communities_to_original(result.communities, idx_to_original)
         except Exception as e:
             print(f"GDMP2 algorithm failed: {e}")
             # Fallback to Louvain
@@ -246,4 +289,3 @@ class GDMP2Wrapper(BaseAlgorithm):
                     comm_dict[comm_id] = []
                 comm_dict[comm_id].append(node)
             return list(comm_dict.values())
-
