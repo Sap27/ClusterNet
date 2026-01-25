@@ -6,14 +6,9 @@
     "network_size": 1000,
     "mu_values": [
       0.1,
-      0.2,
-      0.3,
-      0.4,
-      0.5,
-      0.6,
-      0.7
+      0.3
     ],
-    "realizations": 1,
+    "realizations": 2,
     "binary": "unweighted_undirected/benchmark"
   },
   "networks": [
@@ -26,12 +21,12 @@
       "communities": 31
     },
     {
-      "name": "mu0.2_r0",
-      "mu": 0.2,
-      "realization": 0,
+      "name": "mu0.1_r1",
+      "mu": 0.1,
+      "realization": 1,
       "nodes": 1000,
       "edges": 7756,
-      "communities": 29
+      "communities": 30
     },
     {
       "name": "mu0.3_r0",
@@ -42,37 +37,13 @@
       "communities": 30
     },
     {
-      "name": "mu0.4_r0",
-      "mu": 0.4,
-      "realization": 0,
+      "name": "mu0.3_r1",
+      "mu": 0.3,
+      "realization": 1,
       "nodes": 1000,
-      "edges": 7681,
-      "communities": 31
-    },
-    {
-      "name": "mu0.5_r0",
-      "mu": 0.5,
-      "realization": 0,
-      "nodes": 1000,
-      "edges": 7827,
-      "communities": 30
-    },
-    {
-      "name": "mu0.6_r0",
-      "mu": 0.6,
-      "realization": 0,
-      "nodes": 1000,
-      "edges": 7693,
-      "communities": 34
-    },
-    {
-      "name": "mu0.7_r0",
-      "mu": 0.7,
-      "realization": 0,
-      "nodes": 1000,
-      "edges": 7615,
-      "communities": 31
+      "edges": 7557,
+      "communities": 32
     }
   ],
-  "timestamp": "2026-01-10T13:40:45.014684"
+  "timestamp": "2026-01-18T16:07:15.326327"
 }
