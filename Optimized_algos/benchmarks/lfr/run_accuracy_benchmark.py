@@ -1225,11 +1225,11 @@ def run_gnn_homophily_benchmark(
     # UNSUPERVISED GNNs (Global Training)
     # =========================================================================
     unsupervised_models = {
-        'GCN_unsup': (GCNUnsupervised(32, 64, max_clusters=50), 'modularity'),  # GCN with modularity loss
+        #'GCN_unsup': (GCNUnsupervised(32, 64, max_clusters=50), 'modularity'),  # GCN with modularity loss
         'DMoN': (DMoNGNN(32, 64, max_clusters=50), 'modularity'),  # DMoN with DMoNPooling
-        'MinCut': (MinCutGNN(32, 64, max_clusters=50), 'mincut'),  # MinCut with dense_mincut_pool
-        'GAT_unsup': (GATGNN(32, 64, max_clusters=50), 'modularity'),  # GAT with modularity loss
-        'SAGE_unsup': (GraphSAGEGNN(32, 64, max_clusters=50), 'modularity'),  # GraphSAGE with modularity loss
+        #'MinCut': (MinCutGNN(32, 64, max_clusters=50), 'mincut'),  # MinCut with dense_mincut_pool
+        #'GAT_unsup': (GATGNN(32, 64, max_clusters=50), 'modularity'),  # GAT with modularity loss
+        #'SAGE_unsup': (GraphSAGEGNN(32, 64, max_clusters=50), 'modularity'),  # GraphSAGE with modularity loss
         'GIN_unsup': (GINGNN(32, 64, max_clusters=50), 'modularity'),  # GIN with modularity loss
           # Graph Transformer
     }
