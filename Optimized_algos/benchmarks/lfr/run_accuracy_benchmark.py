@@ -45,6 +45,9 @@ from clusternet.gnn.models.sage_cluster import SAGEClusterModel
 from clusternet.gnn.models.gcn_cluster import GCNClusterModel
 from clusternet.gnn.models.gin_cluster import GINClusterModel
 from clusternet.gnn.models.graph_transformer import GraphTransformerModel
+# Import supervised models from clusternet
+from clusternet.gnn.models.gcn_supervised import GCNSupervisedModel
+from clusternet.gnn.models.gat_supervised import GATSupervisedModel
 
 # PyTorch/PyG imports
 try:
@@ -774,34 +777,62 @@ class GraphTransformerGNN(nn.Module):
 
 
 # Semi-supervised models (per-network training with labels)
+# Using ClusterNet's original supervised model definitions
 class GCNSemiSupervised(nn.Module):
-    """GCN for semi-supervised node classification."""
-    def __init__(self, in_dim, hidden_dim, num_classes):
+    """
+    GCN wrapper for semi-supervised benchmark - Uses actual GCNSupervisedModel.
+    
+    This uses ClusterNet's original GCN supervised implementation with
+    configurable layers and proper architecture from Kipf & Welling (2017).
+    """
+    def __init__(self, in_dim, hidden_dim, num_classes, num_layers=3, dropout=0.5):
         super().__init__()
-        self.conv1 = GCNConv(in_dim, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, hidden_dim)
-        self.classifier = nn.Linear(hidden_dim, num_classes)
+        # Use actual GCNSupervisedModel from clusternet
+        self.model = GCNSupervisedModel(
+            in_channels=in_dim,
+            hidden_channels=hidden_dim,
+            out_channels=num_classes,
+            num_layers=num_layers,
+            dropout=dropout
+        )
     
     def forward(self, x, edge_index):
-        x = F.relu(self.conv1(x, edge_index))
-        x = F.dropout(x, p=0.5, training=self.training)
-        x = F.relu(self.conv2(x, edge_index))
-        return self.classifier(x)
+        # GCNSupervisedModel returns log_softmax, we return logits for CE loss
+        log_probs = self.model(x, edge_index)
+        return log_probs  # Already log_softmax, compatible with NLLLoss
+    
+    def get_embeddings(self, x, edge_index):
+        """Get node embeddings from second-to-last layer."""
+        return self.model.get_embeddings(x, edge_index)
 
 
 class GATSemiSupervised(nn.Module):
-    """GAT for semi-supervised node classification."""
-    def __init__(self, in_dim, hidden_dim, num_classes, heads=4):
+    """
+    GAT wrapper for semi-supervised benchmark - Uses actual GATSupervisedModel.
+    
+    This uses ClusterNet's original GAT supervised implementation with
+    multi-head attention from Veličković et al. (2018).
+    """
+    def __init__(self, in_dim, hidden_dim, num_classes, num_layers=3, heads=8, dropout=0.6):
         super().__init__()
-        self.conv1 = GATConv(in_dim, hidden_dim // heads, heads=heads)
-        self.conv2 = GATConv(hidden_dim, hidden_dim, heads=1)
-        self.classifier = nn.Linear(hidden_dim, num_classes)
+        # Use actual GATSupervisedModel from clusternet
+        self.model = GATSupervisedModel(
+            in_channels=in_dim,
+            hidden_channels=hidden_dim,
+            out_channels=num_classes,
+            num_layers=num_layers,
+            heads=heads,
+            dropout=dropout
+        )
     
     def forward(self, x, edge_index):
-        x = F.elu(self.conv1(x, edge_index))
-        x = F.dropout(x, p=0.5, training=self.training)
-        x = F.elu(self.conv2(x, edge_index))
-        return self.classifier(x)
+        # GATSupervisedModel returns log_softmax, compatible with NLLLoss
+        log_probs = self.model(x, edge_index)
+        return log_probs
+    
+    def get_embeddings(self, x, edge_index):
+        """Get node embeddings from second-to-last layer."""
+        return self.model.get_embeddings(x, edge_index)
 
 
 # =============================================================================
@@ -1085,6 +1116,8 @@ def train_unsupervised_gnn(model, train_nets, loss_type='modularity', epochs=100
     
     # Check if model has built-in loss (DMoNGNN and MinCutGNN now both support return_loss)
     has_builtin_loss = isinstance(model, (DMoNGNN, MinCutGNN))
+    print("Has builtin loss:", has_builtin_loss)
+    print("Loss type:", loss_type)
     
     for epoch in range(epochs):
         np.random.shuffle(train_nets)
@@ -1100,13 +1133,16 @@ def train_unsupervised_gnn(model, train_nets, loss_type='modularity', epochs=100
             optimizer.zero_grad()
             
             if has_builtin_loss:
+                #print("Builtin loss")
                 # DMoNGNN and MinCutGNN return (soft_assignments, loss) when return_loss=True
                 s, loss = model(features, edge_index, return_loss=True)
             else:
                 s = model(features, edge_index)
                 if loss_type == 'modularity':
+                    #print("Modularity loss")    
                     loss = modularity_loss(s, edge_index, n)
                 else:  # mincut (fallback for non-MinCutGNN models)
+                    #print("Mincut loss")
                     loss = mincut_loss(s, edge_index, n)
             
             loss.backward()
@@ -1137,7 +1173,11 @@ def train_unsupervised_gnn(model, train_nets, loss_type='modularity', epochs=100
 
 
 def train_semisupervised_gnn(model, G, gt, features, train_ratio=0.5, epochs=200):
-    """Train semi-supervised GNN per-network with partial labels."""
+    """
+    Train semi-supervised GNN per-network with partial labels.
+    
+    Uses NLL loss since ClusterNet's supervised models return log_softmax output.
+    """
     n = G.number_of_nodes()
     edge_index = get_edge_index(G).to(DEVICE)
     features = features.to(DEVICE)
@@ -1155,7 +1195,8 @@ def train_semisupervised_gnn(model, G, gt, features, train_ratio=0.5, epochs=200
     for epoch in range(epochs):
         optimizer.zero_grad()
         out = model(features, edge_index)
-        loss = F.cross_entropy(out[train_mask], labels[train_mask])
+        # Use NLL loss since ClusterNet models return log_softmax
+        loss = F.nll_loss(out[train_mask], labels[train_mask])
         loss.backward()
         optimizer.step()
     
