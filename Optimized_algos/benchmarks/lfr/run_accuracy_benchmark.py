@@ -142,6 +142,75 @@ if HAS_TORCH:
 
 
 # =============================================================================
+# PARTITION SAVING UTILITIES
+# =============================================================================
+
+def save_partition(partitions_dir: Path, network_name: str, algorithm: str, 
+                   partition: np.ndarray, ground_truth: np.ndarray = None,
+                   extra_info: dict = None):
+    """
+    Save algorithm partition (community assignments) to file.
+    
+    Args:
+        partitions_dir: Directory to save partitions
+        network_name: Name of the network (e.g., 'lfr_n1000_mu0.3_r1')
+        algorithm: Algorithm name (e.g., 'louvain', 'GCN_unsup')
+        partition: Node-to-community assignments as numpy array [N]
+        ground_truth: Optional ground truth assignments [N]
+        extra_info: Optional dict with extra info (feature_type, feature_distance, etc.)
+    """
+    partitions_dir = Path(partitions_dir)
+    partitions_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create filename with algorithm and network info
+    if extra_info:
+        # Include extra info in filename (e.g., feature_type or feature_distance)
+        extra_str = '_'.join(f"{k}{v}" for k, v in sorted(extra_info.items()))
+        filename = f"{network_name}_{algorithm}_{extra_str}.json"
+    else:
+        filename = f"{network_name}_{algorithm}.json"
+    
+    # Convert partition to communities format (list of lists)
+    n_clusters = len(np.unique(partition))
+    communities = [[] for _ in range(n_clusters)]
+    cluster_map = {old: new for new, old in enumerate(np.unique(partition))}
+    for node, cluster in enumerate(partition):
+        communities[cluster_map[cluster]].append(int(node))
+    
+    # Build output data
+    output = {
+        'network': network_name,
+        'algorithm': algorithm,
+        'num_nodes': len(partition),
+        'num_communities': n_clusters,
+        'partition': partition.tolist(),  # Node-to-cluster assignments
+        'communities': communities,  # List of node lists per community
+    }
+    
+    if ground_truth is not None:
+        output['ground_truth'] = ground_truth.tolist()
+    
+    if extra_info:
+        output['extra_info'] = extra_info
+    
+    # Save to JSON
+    filepath = partitions_dir / filename
+    with open(filepath, 'w') as f:
+        json.dump(output, f, indent=2)
+    
+    return filepath
+
+
+def communities_to_partition(communities: list, n_nodes: int) -> np.ndarray:
+    """Convert list of communities to node partition array."""
+    partition = np.zeros(n_nodes, dtype=int)
+    for comm_id, comm in enumerate(communities):
+        for node in comm:
+            partition[node] = comm_id
+    return partition
+
+
+# =============================================================================
 # NODE FEATURES
 # =============================================================================
 
@@ -429,12 +498,27 @@ def run_classical_benchmark(
     networks_dir: str,
     results_dir: str,
     algorithms: list,
-    verbose: bool = True
+    verbose: bool = True,
+    save_partitions: bool = True
 ):
-    """Run classical algorithms benchmark."""
+    """
+    Run classical algorithms benchmark.
+    
+    Args:
+        networks_dir: Directory containing LFR networks
+        results_dir: Directory to save results
+        algorithms: List of algorithm names to run
+        verbose: Print progress
+        save_partitions: If True, save algorithm partitions to partitions/ subdirectory
+    """
     networks_path = Path(networks_dir)
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create partitions directory
+    partitions_path = results_path / 'partitions' / 'classical'
+    if save_partitions:
+        partitions_path.mkdir(parents=True, exist_ok=True)
     
     with open(networks_path / 'metadata.json', 'r') as f:
         metadata = json.load(f)
@@ -451,6 +535,10 @@ def run_classical_benchmark(
         
         G, true_communities = load_network(str(networks_path), name)
         num_true_comms = len(true_communities)
+        n = G.number_of_nodes()
+        
+        # Convert ground truth communities to partition array
+        gt = communities_to_partition(true_communities, n)
         
         for algo_name in algorithms:
             if verbose:
@@ -460,6 +548,16 @@ def run_classical_benchmark(
             
             if result.success and result.communities:
                 metrics = compute_all_metrics(G, true_communities, result.communities)
+                
+                # Convert detected communities to partition
+                pred = communities_to_partition(result.communities, n)
+                
+                # Save partition
+                if save_partitions:
+                    save_partition(
+                        partitions_path, name, algo_name,
+                        partition=pred, ground_truth=gt
+                    )
                 
                 all_results.append({
                     'network': name,
@@ -504,6 +602,8 @@ def run_classical_benchmark(
     
     if verbose:
         print(f"\nClassical results saved to: {results_path / 'classical_accuracy_results.csv'}")
+        if save_partitions:
+            print(f"Partitions saved to: {partitions_path}")
     
     return df
 
@@ -1214,7 +1314,8 @@ def run_gnn_homophily_benchmark(
     feature_distances: list,
     results_dir: str,
     n_train_networks: int = 100,
-    verbose: bool = True
+    verbose: bool = True,
+    save_partitions: bool = True
 ):
     """
     Run GNN homophily ablation benchmark with 4 GNN architectures.
@@ -1228,6 +1329,14 @@ def run_gnn_homophily_benchmark(
     SEMI-SUPERVISED (per-network training with labels):
     - GCN semi-supervised
     - GAT semi-supervised
+    
+    Args:
+        networks_dir: Directory containing LFR networks
+        feature_distances: List of feature distances to test
+        results_dir: Directory to save results
+        n_train_networks: Number of training networks
+        verbose: Print progress
+        save_partitions: If True, save algorithm partitions to partitions/ subdirectory
     """
     if not HAS_TORCH:
         print("PyTorch not available, skipping GNN benchmark")
@@ -1236,6 +1345,11 @@ def run_gnn_homophily_benchmark(
     networks_path = Path(networks_dir)
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create partitions directory
+    partitions_path = results_path / 'partitions' / 'gnn_homophily'
+    if save_partitions:
+        partitions_path.mkdir(parents=True, exist_ok=True)
     
     with open(networks_path / 'metadata.json', 'r') as f:
         metadata = json.load(f)
@@ -1324,6 +1438,14 @@ def run_gnn_homophily_benchmark(
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
                     
+                    # Save partition
+                    if save_partitions:
+                        save_partition(
+                            partitions_path, name, model_name,
+                            partition=np.array(pred), ground_truth=gt,
+                            extra_info={'fd': feat_dist}
+                        )
+                    
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1369,6 +1491,14 @@ def run_gnn_homophily_benchmark(
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
                     
+                    # Save partition
+                    if save_partitions:
+                        save_partition(
+                            partitions_path, name, ss_name,
+                            partition=np.array(pred), ground_truth=gt,
+                            extra_info={'fd': feat_dist}
+                        )
+                    
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1409,6 +1539,14 @@ def run_gnn_homophily_benchmark(
             ami_km = adjusted_mutual_info_score(gt, pred_km)
             nmi_km = normalized_mutual_info_score(gt, pred_km)
             
+            # Save partition
+            if save_partitions:
+                save_partition(
+                    partitions_path, name, 'kmeans_homophily',
+                    partition=pred_km, ground_truth=gt,
+                    extra_info={'fd': feat_dist}
+                )
+            
             all_results.append({
                 'network': name,
                 'mu': mu,
@@ -1441,6 +1579,8 @@ def run_gnn_homophily_benchmark(
     
     if verbose:
         print(f"\nHomophily results saved to: {results_path / 'gnn_homophily_results.csv'}")
+        if save_partitions:
+            print(f"Partitions saved to: {partitions_path}")
     
     return df
 
@@ -1449,7 +1589,8 @@ def run_gnn_features_benchmark(
     networks_dir: str,
     results_dir: str,
     n_train_networks: int = 100,
-    verbose: bool = True
+    verbose: bool = True,
+    save_partitions: bool = True
 ):
     """
     Run GNN node features benchmark with 4 GNN architectures.
@@ -1459,6 +1600,13 @@ def run_gnn_features_benchmark(
     
     1. Train globally on LFR networks (separate model per feature type per GNN)
     2. Test on SAME LFR networks as classical algorithms (zero-shot)
+    
+    Args:
+        networks_dir: Directory containing LFR networks
+        results_dir: Directory to save results
+        n_train_networks: Number of training networks
+        verbose: Print progress
+        save_partitions: If True, save algorithm partitions to partitions/ subdirectory
     """
     if not HAS_TORCH:
         print("PyTorch not available, skipping GNN benchmark")
@@ -1467,6 +1615,11 @@ def run_gnn_features_benchmark(
     networks_path = Path(networks_dir)
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create partitions directory
+    partitions_path = results_path / 'partitions' / 'gnn_features'
+    if save_partitions:
+        partitions_path.mkdir(parents=True, exist_ok=True)
     
     with open(networks_path / 'metadata.json', 'r') as f:
         metadata = json.load(f)
@@ -1584,6 +1737,14 @@ def run_gnn_features_benchmark(
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
                     
+                    # Save partition
+                    if save_partitions:
+                        save_partition(
+                            partitions_path, name, gnn_name,
+                            partition=np.array(pred), ground_truth=gt,
+                            extra_info={'ft': feat_type}
+                        )
+                    
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1629,6 +1790,14 @@ def run_gnn_features_benchmark(
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
                     
+                    # Save partition
+                    if save_partitions:
+                        save_partition(
+                            partitions_path, name, ss_name,
+                            partition=np.array(pred), ground_truth=gt,
+                            extra_info={'ft': feat_type}
+                        )
+                    
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1669,6 +1838,14 @@ def run_gnn_features_benchmark(
             ami_km = adjusted_mutual_info_score(gt, pred_km)
             nmi_km = normalized_mutual_info_score(gt, pred_km)
             
+            # Save partition
+            if save_partitions:
+                save_partition(
+                    partitions_path, name, 'KMeans',
+                    partition=pred_km, ground_truth=gt,
+                    extra_info={'ft': feat_type}
+                )
+            
             all_results.append({
                 'network': name,
                 'mu': mu,
@@ -1701,6 +1878,8 @@ def run_gnn_features_benchmark(
     
     if verbose:
         print(f"\nFeatures results saved to: {results_path / 'gnn_features_results.csv'}")
+        if save_partitions:
+            print(f"Partitions saved to: {partitions_path}")
     
     return df
 
