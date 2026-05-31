@@ -269,6 +269,9 @@ class NestedSBMWrapper(BaseAlgorithm):
     
     Parameters:
         deg_corr: Use degree-corrected SBM (default: True)
+        extract_level: Which hierarchy level to return (default: 0 = finest).
+            - int >= 0: specific level index (0 = finest, 1 = next coarser, ...)
+            - 'coarsest': the coarsest level that still has > 1 community
         
     Reference:
         Peixoto, T. P. (2014). Hierarchical block structures and high-resolution 
@@ -278,37 +281,62 @@ class NestedSBMWrapper(BaseAlgorithm):
     SUPPORTS_DIRECTED = True
     SUPPORTS_WEIGHTED = True
     
-    def __init__(self, G, deg_corr=True, **kwargs):
+    def __init__(self, G, deg_corr=True, extract_level=0, **kwargs):
         super().__init__(G, **kwargs)
         self.deg_corr = deg_corr
+        self.extract_level = extract_level
         self.params['deg_corr'] = deg_corr
+        self.params['extract_level'] = extract_level
     
+    def _blocks_to_communities(self, blocks, node_list, num_vertices):
+        """Convert a graph-tool block assignment to a list-of-lists partition."""
+        comm_dict = {}
+        for i in range(num_vertices):
+            block_id = blocks[i]
+            if block_id not in comm_dict:
+                comm_dict[block_id] = []
+            comm_dict[block_id].append(node_list[i])
+        return list(comm_dict.values())
+
     def run(self):
         try:
             import graph_tool.all as gt
             
-            # Convert to graph-tool
             g, node_list = _networkx_to_graph_tool(self.G)
             
-            # Run nested SBM inference (API v2.x uses state_args for deg_corr)
             state = gt.minimize_nested_blockmodel_dl(
                 g,
                 state_args={'deg_corr': self.deg_corr}
             )
             
-            # Get the finest level (level 0) partition
             levels = state.get_levels()
-            blocks = levels[0].get_blocks()
-            
-            # Group nodes by block
-            comm_dict = {}
-            for i in range(g.num_vertices()):
-                block_id = blocks[i]
-                if block_id not in comm_dict:
-                    comm_dict[block_id] = []
-                comm_dict[block_id].append(node_list[i])
-            
-            return list(comm_dict.values())
+
+            if self.extract_level == 'coarsest':
+                # Walk from coarsest to finest, return the first level with K > 2
+                # (K <= 2 is near-trivial and uninformative for hierarchical analysis)
+                for lvl in reversed(levels):
+                    blocks = lvl.get_blocks()
+                    n_blocks = len(set(int(blocks[i]) for i in range(lvl.get_N())))
+                    if n_blocks > 2:
+                        return self._project_level(levels, lvl, node_list, g.num_vertices())
+                # Fallback: coarsest with > 1
+                for lvl in reversed(levels):
+                    blocks = lvl.get_blocks()
+                    n_blocks = len(set(int(blocks[i]) for i in range(lvl.get_N())))
+                    if n_blocks > 1:
+                        return self._project_level(levels, lvl, node_list, g.num_vertices())
+                # All levels trivial — fall through to level 0
+                blocks = levels[0].get_blocks()
+            elif isinstance(self.extract_level, int):
+                idx = min(self.extract_level, len(levels) - 1)
+                if idx == 0:
+                    blocks = levels[0].get_blocks()
+                else:
+                    return self._project_level(levels, levels[idx], node_list, g.num_vertices())
+            else:
+                blocks = levels[0].get_blocks()
+
+            return self._blocks_to_communities(blocks, node_list, g.num_vertices())
             
         except ImportError:
             print("Nested SBM: graph-tool not installed, using Leiden fallback")
@@ -316,6 +344,26 @@ class NestedSBMWrapper(BaseAlgorithm):
         except Exception as e:
             print(f"Nested SBM algorithm failed: {e}, using Leiden fallback")
             return self._leiden_fallback()
+
+    def _project_level(self, levels, target_level, node_list, num_vertices):
+        """Project a coarse hierarchy level back to original node IDs.
+
+        Each level l maps its nodes to blocks; level l+1's "nodes" are
+        level l's blocks.  To get the assignment for original nodes at a
+        coarse level, we compose the block maps from level 0 up to the
+        target level.
+        """
+        target_idx = list(levels).index(target_level)
+        # Start with the node -> level-0 block mapping
+        assignment = [int(levels[0].get_blocks()[i]) for i in range(num_vertices)]
+        # Compose through each intermediate level
+        for l in range(1, target_idx + 1):
+            blocks_l = levels[l].get_blocks()
+            assignment = [int(blocks_l[a]) for a in assignment]
+        comm_dict = {}
+        for i, block_id in enumerate(assignment):
+            comm_dict.setdefault(block_id, []).append(node_list[i])
+        return list(comm_dict.values())
     
     def _leiden_fallback(self):
         """Fallback to Leiden if graph-tool fails."""

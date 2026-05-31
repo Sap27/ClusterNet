@@ -171,12 +171,21 @@ class AlgorithmRunner:
         
         self._algorithms['sbm'] = run_sbm
 
-        # Nested SBM
+        # Nested SBM (finest level — default)
         def run_nested_sbm(G, **kwargs):
             wrapper = clusternet.algorithms.cdlib_wrappers.statistical_wrappers.NestedSBMWrapper(G)
             return wrapper.run()
         
         self._algorithms['nested_sbm'] = run_nested_sbm
+
+        # Nested SBM (coarsest non-trivial level)
+        def run_nested_sbm_coarse(G, **kwargs):
+            wrapper = clusternet.algorithms.cdlib_wrappers.statistical_wrappers.NestedSBMWrapper(
+                G, extract_level='coarsest'
+            )
+            return wrapper.run()
+        
+        self._algorithms['nested_sbm_coarse'] = run_nested_sbm_coarse
         
         # ============= CDLIB ALGORITHMS =============
         
@@ -377,7 +386,129 @@ class AlgorithmRunner:
                 return None
         
         self._algorithms['csbio_iitm2'] = run_csbio
-    
+
+        # ============= GNN ALGORITHMS =============
+        # Published SOTA methods using the clusternet.gnn models package.
+        # Unsupervised methods auto-generate structural features when none
+        # are provided; pass num_clusters via kwargs for fair comparison.
+
+        try:
+            from clusternet.gnn.models import (
+                DMoNCluster, MinCutCluster, VGAECluster, DGICluster,
+                GCNSupervised, GATSupervised,
+                MLPKMeansBaseline, Node2VecCluster,
+            )
+            from clusternet.gnn.base_gnn import BaseGNNClustering
+            HAS_GNN = True
+        except ImportError:
+            HAS_GNN = False
+
+        if HAS_GNN:
+            def run_dmon_gnn(G, **kwargs):
+                algo = DMoNCluster(
+                    G, num_clusters=kwargs.get('num_clusters'),
+                    epochs=kwargs.get('epochs', 200),
+                    hidden_channels=kwargs.get('hidden_channels', 64),
+                    features=kwargs.get('features'),
+                )
+                return algo.run()
+
+            self._algorithms['dmon_gnn'] = run_dmon_gnn
+
+            def run_mincut_gnn(G, **kwargs):
+                algo = MinCutCluster(
+                    G, num_clusters=kwargs.get('num_clusters'),
+                    epochs=kwargs.get('epochs', 200),
+                    hidden_channels=kwargs.get('hidden_channels', 64),
+                    features=kwargs.get('features'),
+                )
+                return algo.run()
+
+            self._algorithms['mincut_gnn'] = run_mincut_gnn
+
+            def run_vgae_gnn(G, **kwargs):
+                algo = VGAECluster(
+                    G, num_clusters=kwargs.get('num_clusters'),
+                    epochs=kwargs.get('epochs', 200),
+                    hidden_channels=kwargs.get('hidden_channels', 64),
+                    embedding_dim=kwargs.get('embedding_dim', 32),
+                    features=kwargs.get('features'),
+                )
+                return algo.run()
+
+            self._algorithms['vgae_gnn'] = run_vgae_gnn
+
+            def run_dgi_gnn(G, **kwargs):
+                algo = DGICluster(
+                    G, num_clusters=kwargs.get('num_clusters'),
+                    epochs=kwargs.get('epochs', 300),
+                    hidden_channels=kwargs.get('hidden_channels', 64),
+                    features=kwargs.get('features'),
+                )
+                return algo.run()
+
+            self._algorithms['dgi_gnn'] = run_dgi_gnn
+
+            def run_mlp_kmeans(G, **kwargs):
+                ext_features = kwargs.get('features')
+                if ext_features is None:
+                    ext_features = BaseGNNClustering._generate_structural_features(None, G).numpy()
+                algo = MLPKMeansBaseline(
+                    G, num_clusters=kwargs.get('num_clusters'),
+                    features=ext_features,
+                )
+                return algo.run()
+
+            self._algorithms['mlp_kmeans'] = run_mlp_kmeans
+
+            def run_node2vec_gnn(G, **kwargs):
+                algo = Node2VecCluster(
+                    G, num_clusters=kwargs.get('num_clusters'),
+                    epochs=kwargs.get('epochs', 100),
+                    embedding_dim=kwargs.get('embedding_dim', 64),
+                )
+                return algo.run()
+
+            self._algorithms['node2vec_gnn'] = run_node2vec_gnn
+
+            def run_gcn_supervised(G, **kwargs):
+                labels = kwargs.get('labels')
+                train_mask = kwargs.get('train_mask')
+                num_clusters = kwargs.get('num_clusters')
+                if labels is None or num_clusters is None:
+                    return None
+                algo = GCNSupervised(
+                    G, num_clusters=num_clusters, labels=labels,
+                    train_mask=train_mask,
+                    epochs=kwargs.get('epochs', 200),
+                    hidden_channels=kwargs.get('hidden_channels', 64),
+                    features=kwargs.get('features'),
+                )
+                return algo.run()
+
+            self._algorithms['gcn_supervised'] = run_gcn_supervised
+            for pct in (40, 60, 80):
+                self._algorithms[f'gcn_supervised_{pct}'] = run_gcn_supervised
+
+            def run_gat_supervised(G, **kwargs):
+                labels = kwargs.get('labels')
+                train_mask = kwargs.get('train_mask')
+                num_clusters = kwargs.get('num_clusters')
+                if labels is None or num_clusters is None:
+                    return None
+                algo = GATSupervised(
+                    G, num_clusters=num_clusters, labels=labels,
+                    train_mask=train_mask,
+                    epochs=kwargs.get('epochs', 200),
+                    hidden_channels=kwargs.get('hidden_channels', 8),
+                    features=kwargs.get('features'),
+                )
+                return algo.run()
+
+            self._algorithms['gat_supervised'] = run_gat_supervised
+            for pct in (40, 60, 80):
+                self._algorithms[f'gat_supervised_{pct}'] = run_gat_supervised
+
     def _partition_dict_to_list(self, partition: Dict) -> List[List[int]]:
         """Convert partition dict {node: community_id} to list of communities."""
         communities = {}

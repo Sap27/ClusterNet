@@ -52,13 +52,16 @@ class GCNSupervisedModel(nn.Module):
         self.num_layers = num_layers
         self.dropout = dropout
         self.convs = nn.ModuleList()
+        self.bns = nn.ModuleList()
         
         # Input layer
         self.convs.append(GCNConv(in_channels, hidden_channels))
+        self.bns.append(nn.BatchNorm1d(hidden_channels))
         
         # Hidden layers
         for _ in range(num_layers - 2):
             self.convs.append(GCNConv(hidden_channels, hidden_channels))
+            self.bns.append(nn.BatchNorm1d(hidden_channels))
         
         # Output layer
         self.convs.append(GCNConv(hidden_channels, out_channels))
@@ -76,6 +79,7 @@ class GCNSupervisedModel(nn.Module):
         """
         for i in range(self.num_layers - 1):
             x = self.convs[i](x, edge_index)
+            x = self.bns[i](x)
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         
@@ -86,6 +90,7 @@ class GCNSupervisedModel(nn.Module):
         """Get embeddings from second-to-last layer."""
         for i in range(self.num_layers - 1):
             x = self.convs[i](x, edge_index)
+            x = self.bns[i](x)
             x = F.relu(x)
         return x
 

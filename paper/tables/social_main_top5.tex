@@ -1,0 +1,26 @@
+\small
+\begin{tabular}{llrr}
+\toprule
+\textbf{Network} & \textbf{Method} & \textbf{Type} & \textbf{AMI} \\
+\midrule
+Cora & \texttt{gat\_supervised} & GNN (real) & 0.667 \\
+ & \texttt{gcn\_supervised} & GNN (real) & 0.650 \\
+ & \texttt{fastgreedy} & classical & 0.445 \\
+ & \texttt{spectral} & classical & 0.440 \\
+ & \texttt{rber\_pots} & classical & 0.437 \\
+\addlinespace[4pt]
+Citeseer & \texttt{gat\_supervised} & GNN (real) & 0.464 \\
+ & \texttt{gcn\_supervised} & GNN (real) & 0.439 \\
+ & \texttt{spectral} & classical & 0.359 \\
+ & \texttt{demon} & classical & 0.347 \\
+ & \texttt{kclique} & classical & 0.288 \\
+\addlinespace[4pt]
+Amazon Photo & \texttt{gat\_supervised} & GNN (real) & 0.855 \\
+ & \texttt{gcn\_supervised} & GNN (real) & 0.698 \\
+ & \texttt{spinglass} & classical & 0.665 \\
+ & \texttt{rb\_pots} & classical & 0.659 \\
+ & \texttt{louvain} & classical & 0.658 \\
+\addlinespace[4pt]
+\bottomrule
+\end{tabular}
+\normalsize

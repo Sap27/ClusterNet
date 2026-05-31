@@ -29,11 +29,16 @@ SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent.parent))
 
-from config import HIERARCHICAL_CONFIG, ALGORITHMS, ACTIVE_CATEGORIES
+from config import HIERARCHICAL_CONFIG, ALGORITHMS, HIERARCHICAL_CATEGORIES
 from lfr_generator import LFRGenerator
-from algorithm_runner import AlgorithmRunner, GNNRunner
+from algorithm_runner import AlgorithmRunner
 from metrics import compute_all_metrics, compute_ami
 import networkx as nx
+
+try:
+    GNN_HIERARCHICAL = ALGORITHMS.get('gnn_hierarchical', [])
+except Exception:
+    GNN_HIERARCHICAL = []
 
 
 def save_hierarchical_network(G, micro_comms, macro_comms, output_dir, name):
@@ -154,152 +159,207 @@ def run_hierarchical_benchmark(
     networks_dir: str,
     results_dir: str,
     algorithms: list,
-    include_gnn: bool = True,
     verbose: bool = True
 ):
-    """Run hierarchical benchmark."""
+    """Run classical hierarchical benchmark (no GNNs)."""
     networks_path = Path(networks_dir)
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
-    
+
     with open(networks_path / 'metadata.json', 'r') as f:
         metadata = json.load(f)
-    
+
     runner = AlgorithmRunner(verbose=False)
-    gnn_runner = GNNRunner(device='cpu', verbose=False) if include_gnn else None
-    
     all_results = []
-    
+
     for network_info in metadata['networks']:
         name = network_info['name']
         mu1, mu2 = network_info['mu1'], network_info['mu2']
-        
+
         if verbose:
             print(f"\nProcessing {name} (μ1={mu1}, μ2={mu2})...")
-        
+
         G, micro_comms, macro_comms = load_hierarchical_network(str(networks_path), name)
         num_nodes = G.number_of_nodes()
-        
-        # Run each algorithm
+
         for algo_name in algorithms:
             if verbose:
                 print(f"  Running {algo_name}...", end=' ', flush=True)
-            
+
             result = runner.run_algorithm(G, algo_name)
-            
+
             if result.success and result.communities:
-                # Compare with both micro and macro ground truth
                 ami_micro = compute_ami(micro_comms, result.communities, num_nodes)
                 ami_macro = compute_ami(macro_comms, result.communities, num_nodes)
-                
-                # Determine which level it detected better
                 detected_level = 'micro' if ami_micro > ami_macro else 'macro'
-                
+
                 all_results.append({
-                    'network': name,
-                    'mu1': mu1,
-                    'mu2': mu2,
+                    'network': name, 'mu1': mu1, 'mu2': mu2,
                     'realization': network_info['realization'],
-                    'algorithm': algo_name,
-                    'algorithm_type': 'classical',
-                    'success': True,
-                    'runtime': result.runtime,
-                    'ami_micro': ami_micro,
-                    'ami_macro': ami_macro,
+                    'algorithm': algo_name, 'algorithm_type': 'classical',
+                    'success': True, 'runtime': result.runtime,
+                    'ami_micro': ami_micro, 'ami_macro': ami_macro,
                     'detected_level': detected_level,
                     'num_detected': len(result.communities),
                     'num_micro': len(micro_comms),
                     'num_macro': len(macro_comms),
                 })
-                
                 if verbose:
                     print(f"✓ micro={ami_micro:.3f}, macro={ami_macro:.3f}")
             else:
                 all_results.append({
-                    'network': name,
-                    'mu1': mu1,
-                    'mu2': mu2,
+                    'network': name, 'mu1': mu1, 'mu2': mu2,
                     'realization': network_info['realization'],
-                    'algorithm': algo_name,
-                    'algorithm_type': 'classical',
-                    'success': False,
-                    'runtime': result.runtime,
+                    'algorithm': algo_name, 'algorithm_type': 'classical',
+                    'success': False, 'runtime': result.runtime,
                     'error': result.error_message
                 })
                 if verbose:
-                    print(f"✗")
-        
-        # Run GNN algorithms
-        if gnn_runner and gnn_runner.torch_available:
-            for gnn_name in ['dmon', 'mincut']:
-                for target_level, num_comms in [('micro', len(micro_comms)), ('macro', len(macro_comms))]:
-                    algo_full_name = f"{gnn_name}_{target_level}"
-                    if verbose:
-                        print(f"  Running {algo_full_name}...", end=' ', flush=True)
-                    
-                    if gnn_name == 'dmon':
-                        result = gnn_runner.run_dmon(G, num_communities=num_comms, epochs=200)
-                    else:
-                        result = gnn_runner.run_mincut(G, num_communities=num_comms, epochs=200)
-                    
-                    if result.success and result.communities:
-                        ami_micro = compute_ami(micro_comms, result.communities, num_nodes)
-                        ami_macro = compute_ami(macro_comms, result.communities, num_nodes)
-                        
-                        all_results.append({
-                            'network': name,
-                            'mu1': mu1,
-                            'mu2': mu2,
-                            'realization': network_info['realization'],
-                            'algorithm': algo_full_name,
-                            'algorithm_type': 'gnn',
-                            'target_level': target_level,
-                            'success': True,
-                            'runtime': result.runtime,
-                            'ami_micro': ami_micro,
-                            'ami_macro': ami_macro,
-                            'detected_level': 'micro' if ami_micro > ami_macro else 'macro',
-                            'num_detected': len(result.communities),
-                        })
-                        
-                        if verbose:
-                            print(f"✓ micro={ami_micro:.3f}, macro={ami_macro:.3f}")
-                    else:
-                        all_results.append({
-                            'network': name,
-                            'mu1': mu1,
-                            'mu2': mu2,
-                            'realization': network_info['realization'],
-                            'algorithm': algo_full_name,
-                            'algorithm_type': 'gnn',
-                            'target_level': target_level,
-                            'success': False,
-                            'runtime': result.runtime,
-                            'error': result.error_message
-                        })
-                        if verbose:
-                            print(f"✗")
-    
-    # Save results
+                    print("✗")
+
     df = pd.DataFrame(all_results)
     df.to_csv(results_path / 'hierarchical_results.csv', index=False)
-    
-    # Summary
+
     df_success = df[df['success'] == True]
-    summary = df_success.groupby(['mu1', 'mu2', 'algorithm']).agg({
-        'ami_micro': ['mean', 'std'],
-        'ami_macro': ['mean', 'std'],
-        'runtime': 'mean',
-    }).round(4)
-    
-    summary.to_csv(results_path / 'hierarchical_summary.csv')
-    
+    if len(df_success) > 0:
+        summary = df_success.groupby(['mu1', 'mu2', 'algorithm']).agg({
+            'ami_micro': ['mean', 'std'],
+            'ami_macro': ['mean', 'std'],
+            'runtime': 'mean',
+        }).round(4)
+        summary.to_csv(results_path / 'hierarchical_summary.csv')
+
     if verbose:
-        print("\n" + "="*60)
-        print("HIERARCHICAL BENCHMARK COMPLETE")
-        print("="*60)
-        print(f"Results saved to: {results_path}")
-    
+        print(f"\nClassical hierarchical results saved to: {results_path}")
+
+    return df
+
+
+def run_gnn_hierarchical_benchmark(
+    networks_dir: str,
+    results_dir: str,
+    gnn_algorithms: list,
+    verbose: bool = True,
+    resume: bool = False,
+    epochs: int = 200,
+):
+    """
+    Run GNN algorithms on hierarchical networks at both micro and macro K.
+
+    Each GNN is run twice per network: once targeting K=micro_communities,
+    once targeting K=macro_communities. Both runs are scored against both
+    ground truth levels.
+    """
+    networks_path = Path(networks_dir)
+    results_path = Path(results_dir)
+    results_path.mkdir(parents=True, exist_ok=True)
+
+    partitions_path = results_path / 'partitions' / 'gnn_hierarchical'
+    partitions_path.mkdir(parents=True, exist_ok=True)
+
+    csv_path = results_path / 'gnn_hierarchical_results.csv'
+
+    with open(networks_path / 'metadata.json', 'r') as f:
+        metadata = json.load(f)
+
+    existing_pairs = set()
+    if resume and csv_path.is_file():
+        try:
+            df_existing = pd.read_csv(csv_path)
+            for _, row in df_existing[df_existing['success'] == True].iterrows():
+                existing_pairs.add((row['network'], row['algorithm']))
+        except Exception:
+            pass
+
+    runner = AlgorithmRunner(verbose=False)
+    all_results = []
+
+    for network_info in metadata['networks']:
+        name = network_info['name']
+        mu1, mu2 = network_info['mu1'], network_info['mu2']
+        realization = network_info['realization']
+
+        if verbose:
+            print(f"\nProcessing {name} (μ1={mu1}, μ2={mu2})...")
+
+        G, micro_comms, macro_comms = load_hierarchical_network(str(networks_path), name)
+        num_nodes = G.number_of_nodes()
+
+        for algo_name in gnn_algorithms:
+            for target_level, target_comms in [('micro', micro_comms), ('macro', macro_comms)]:
+                full_name = f"{algo_name}_{target_level}"
+                num_target = len(target_comms)
+
+                if resume and (name, full_name) in existing_pairs:
+                    if verbose:
+                        print(f"  {full_name}... (skipped, cached) ✓")
+                    continue
+
+                if verbose:
+                    print(f"  Running {full_name} (K={num_target})...", end=' ', flush=True)
+
+                result = runner.run_algorithm(
+                    G, algo_name,
+                    num_clusters=num_target, epochs=epochs,
+                )
+
+                if result.success and result.communities:
+                    ami_micro = compute_ami(micro_comms, result.communities, num_nodes)
+                    ami_macro = compute_ami(macro_comms, result.communities, num_nodes)
+
+                    all_results.append({
+                        'network': name, 'mu1': mu1, 'mu2': mu2,
+                        'realization': realization,
+                        'algorithm': full_name, 'base_algorithm': algo_name,
+                        'algorithm_type': 'gnn', 'target_level': target_level,
+                        'success': True, 'runtime': result.runtime,
+                        'ami_micro': ami_micro, 'ami_macro': ami_macro,
+                        'detected_level': 'micro' if ami_micro > ami_macro else 'macro',
+                        'num_detected': len(result.communities),
+                        'num_micro': len(micro_comms),
+                        'num_macro': len(macro_comms),
+                    })
+                    if verbose:
+                        print(f"✓ micro={ami_micro:.3f}, macro={ami_macro:.3f}")
+                else:
+                    all_results.append({
+                        'network': name, 'mu1': mu1, 'mu2': mu2,
+                        'realization': realization,
+                        'algorithm': full_name, 'base_algorithm': algo_name,
+                        'algorithm_type': 'gnn', 'target_level': target_level,
+                        'success': False, 'runtime': result.runtime,
+                        'error': result.error_message
+                    })
+                    if verbose:
+                        err = result.error_message or ''
+                        print(f"✗ {err[:60]}")
+
+    if resume and csv_path.is_file():
+        try:
+            df_old = pd.read_csv(csv_path)
+            all_results = pd.concat([df_old, pd.DataFrame(all_results)],
+                                    ignore_index=True).drop_duplicates(
+                                        subset=['network', 'algorithm'], keep='last')
+            all_results = all_results.to_dict('records')
+        except Exception:
+            pass
+
+    df = pd.DataFrame(all_results)
+    df.to_csv(csv_path, index=False)
+
+    if len(df) > 0 and 'ami_micro' in df.columns:
+        df_ok = df[df['success'] == True]
+        if len(df_ok) > 0:
+            summary = df_ok.groupby(['mu1', 'mu2', 'algorithm']).agg({
+                'ami_micro': ['mean', 'std'],
+                'ami_macro': ['mean', 'std'],
+                'runtime': 'mean',
+            }).round(4)
+            summary.to_csv(results_path / 'gnn_hierarchical_summary.csv')
+
+    if verbose:
+        print(f"\nGNN hierarchical results saved to: {csv_path}")
+
     return df
 
 
@@ -371,68 +431,79 @@ def plot_hierarchical_results(results_file: str, output_dir: str):
 def main():
     parser = argparse.ArgumentParser(description='LFR Hierarchical Benchmark')
     parser.add_argument('--generate', action='store_true', help='Generate networks')
-    parser.add_argument('--run', action='store_true', help='Run benchmark')
+    parser.add_argument('--run', action='store_true', help='Run classical benchmark')
+    parser.add_argument('--run-gnn', action='store_true', help='Run GNN benchmark')
     parser.add_argument('--plot', action='store_true', help='Generate plots')
-    parser.add_argument('--all', action='store_true', help='Generate, run, and plot')
+    parser.add_argument('--all', action='store_true', help='Generate, run (classical), and plot')
     parser.add_argument('--output', type=str, default=None, help='Output directory')
     parser.add_argument('--realizations', type=int, default=None)
-    parser.add_argument('--no-gnn', action='store_true', help='Skip GNN algorithms')
-    
+    parser.add_argument('--resume', action='store_true', help='Resume GNN benchmark (skip completed)')
+    parser.add_argument('--epochs', type=int, default=200, help='GNN training epochs (default: 200)')
+
     args = parser.parse_args()
-    
+
     script_dir = Path(__file__).parent
     lfr_dir = script_dir.parent.parent.parent.parent / 'LFRbenchmarks'
-    
+
     if args.output:
         output_dir = Path(args.output)
     else:
         output_dir = script_dir / 'hierarchical'
-    
+
     networks_dir = output_dir / 'networks'
     results_dir = output_dir / 'results'
-    
+
     config = HIERARCHICAL_CONFIG.copy()
     if args.realizations:
         config['realizations'] = args.realizations
-    
+
     algorithms = []
-    for category in ACTIVE_CATEGORIES:
+    for category in HIERARCHICAL_CATEGORIES:
         algorithms.extend(ALGORITHMS.get(category, []))
-    
+
     if args.all or args.generate:
-        print("="*60)
+        print("=" * 60)
         print("GENERATING HIERARCHICAL LFR NETWORKS")
-        print("="*60)
+        print("=" * 60)
         print(f"μ1 values: {config['mu1_values']}")
         print(f"μ2 values: {config['mu2_values']}")
         print(f"Realizations: {config['realizations']}")
-        
+
         generate_hierarchical_networks(
-            str(networks_dir),
-            config,
-            str(lfr_dir),
-            verbose=True
+            str(networks_dir), config, str(lfr_dir), verbose=True
         )
-    
+
     if args.all or args.run:
-        print("\n" + "="*60)
-        print("RUNNING HIERARCHICAL BENCHMARK")
-        print("="*60)
-        
+        print("\n" + "=" * 60)
+        print("RUNNING HIERARCHICAL BENCHMARK (CLASSICAL)")
+        print("=" * 60)
+
         run_hierarchical_benchmark(
-            str(networks_dir),
-            str(results_dir),
-            algorithms,
-            include_gnn=not args.no_gnn,
-            verbose=True
+            str(networks_dir), str(results_dir), algorithms, verbose=True
         )
-    
+
+    if args.run_gnn:
+        print("\n" + "=" * 60)
+        print("RUNNING HIERARCHICAL BENCHMARK (GNN)")
+        print("=" * 60)
+
+        gnn_algos = GNN_HIERARCHICAL
+        if not gnn_algos:
+            print("No GNN algorithms configured in config.py (gnn_hierarchical)")
+        else:
+            print(f"GNNs: {gnn_algos}")
+            print(f"Epochs: {args.epochs}, Resume: {args.resume}")
+            run_gnn_hierarchical_benchmark(
+                str(networks_dir), str(results_dir), gnn_algos,
+                verbose=True, resume=args.resume, epochs=args.epochs,
+            )
+
     if args.all or args.plot:
         results_file = results_dir / 'hierarchical_results.csv'
         if results_file.exists():
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("GENERATING PLOTS")
-            print("="*60)
+            print("=" * 60)
             plot_hierarchical_results(str(results_file), str(results_dir))
 
 

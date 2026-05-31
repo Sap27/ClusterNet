@@ -289,8 +289,8 @@ class BaseGNNClustering(BaseAlgorithm):
             loss = self._train_step(self.data)
             losses.append(loss)
             
-            if self.verbose and (epoch + 1) % 10 == 0:
-                print(f'Epoch {epoch + 1:03d}, Loss: {loss:.4f}')
+            if (epoch + 1) % 10 == 0:
+                print(f'    epoch {epoch + 1:03d}/{self.epochs}, loss: {loss:.4f}', flush=True)
         
         return losses
     

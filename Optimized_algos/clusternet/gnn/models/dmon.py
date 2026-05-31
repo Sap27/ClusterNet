@@ -50,13 +50,16 @@ class DMoNModel(nn.Module):
         self.num_clusters = num_clusters
         self.dropout = dropout
         
-        # GCN encoder
+        # GCN encoder with batch norm
         self.conv1 = GCNConv(in_channels, hidden_channels)
+        self.bn1 = nn.BatchNorm1d(hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        self.bn2 = nn.BatchNorm1d(hidden_channels)
         
-        # DMoN pooling layer
+        # Skip connection: DMoNPooling sees [GCN output || raw features]
+        pool_input_dim = hidden_channels + in_channels
         self.pool = DMoNPooling(
-            channels=[hidden_channels, hidden_channels],
+            channels=[pool_input_dim, pool_input_dim],
             k=num_clusters
         )
     
@@ -72,10 +75,12 @@ class DMoNModel(nn.Module):
             cluster_assignments: [N, K]
             total_loss: Scalar loss for training
         """
-        # GCN encoding
-        x = F.selu(self.conv1(x, edge_index))
+        # GCN encoding with batch norm + skip connection
+        x_raw = x
+        x = self.bn1(F.selu(self.conv1(x, edge_index)))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = F.selu(self.conv2(x, edge_index))
+        x = self.bn2(F.selu(self.conv2(x, edge_index)))
+        x = torch.cat([x, x_raw], dim=-1)
         
         # Convert to dense format for pooling
         batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
@@ -94,9 +99,10 @@ class DMoNModel(nn.Module):
     
     def get_embeddings(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
         """Get node embeddings before pooling."""
-        x = F.selu(self.conv1(x, edge_index))
-        x = F.selu(self.conv2(x, edge_index))
-        return x
+        x_raw = x
+        x = self.bn1(F.selu(self.conv1(x, edge_index)))
+        x = self.bn2(F.selu(self.conv2(x, edge_index)))
+        return torch.cat([x, x_raw], dim=-1)
 
 
 @register_algorithm('dmon', aliases=['dmon_clustering', 'modularity_gnn'])

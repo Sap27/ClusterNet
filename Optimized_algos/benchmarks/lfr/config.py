@@ -40,8 +40,8 @@ ACCURACY_CONFIG = {
 SCALABILITY_CONFIG = {
     'name': 'scalability',
     'description': 'Test algorithm runtime as network size increases',
-    'network_sizes': [500, 1000, 2000, 3000, 5000],  # N values (Mac-friendly)
-    'mu': 0.3,             # Fixed μ for scalability test
+    'size_values': [ 50000],  # N values (Mac-friendly)
+    'mu': 0.15,             # Fixed μ for scalability test
     'realizations': 10,    # 10 network realizations per N
     'binary': 'unweighted_undirected/benchmark',
 }
@@ -87,7 +87,7 @@ ALGORITHMS = {
     'disjoint': [
         'louvain',
         'leiden',
-        'walktrap',
+        #'walktrap',
         'fastgreedy',
         'label_propagation',
         'spectral',
@@ -110,18 +110,18 @@ ALGORITHMS = {
         'scan',
         'agdl',
         'async_fluid',
-        'gdmp2',
-        'der',
+        #'gdmp2',
+        #'der',
         'surprise'
     ],
     
     # Custom implementations
     'custom': [
         'score',
-        'svt',
+        #'svt',
         'teamcs',
-        'simnet',
-        'tusk',
+        #'simnet',
+        #'tusk',
         'bigs2',
         'csbio_iitm2',
     ],
@@ -133,11 +133,39 @@ ALGORITHMS = {
         'kclique',
     ],
     
-    # GNN models
-    'gnn': [
-        'dmon',
-        'mincut',
-        'gae',
+    # GNN models (SOTA published methods)
+    'gnn_unsupervised': [
+        'dmon_gnn',
+        'mincut_gnn',
+        'vgae_gnn',
+        'dgi_gnn',
+    ],
+
+    # GNN baselines (ablation: features-only and topology-only)
+    'gnn_baselines': [
+        'mlp_kmeans',
+        'node2vec_gnn',
+    ],
+
+    # GNN semi-supervised (need ground truth labels)
+    'gnn_supervised': [
+        'gcn_supervised',
+        'gat_supervised',
+    ],
+
+    # Semi-supervised label-fraction ablations
+    'gnn_supervised_40': ['gcn_supervised_40', 'gat_supervised_40'],
+    'gnn_supervised_60': ['gcn_supervised_60', 'gat_supervised_60'],
+    'gnn_supervised_80': ['gcn_supervised_80', 'gat_supervised_80'],
+
+    'hierarchical': ['louvain', 'leiden', 'nested_sbm', 'nested_sbm_coarse', 'infomap', 'walktrap', 'csbio_iitm2'],
+
+    # GNNs for hierarchical benchmark (unsupervised, accept num_clusters)
+    'gnn_hierarchical': [
+        'dmon_gnn',
+        'mincut_gnn',
+        'vgae_gnn',
+        'dgi_gnn',
     ],
 }
 
@@ -145,6 +173,13 @@ ALGORITHMS = {
 # For minimal testing, can reduce this
 ACTIVE_CATEGORIES = ['disjoint', 'statistical', 'cdlib', 'custom', 'overlapping']
 OVERLAPPING_CATEGORIES = ['overlapping', 'disjoint']  # For overlapping benchmark
+HIERARCHICAL_CATEGORIES = ['hierarchical']
+
+# GNN categories (unsupervised + baselines run without labels;
+# supervised needs ground truth passed separately)
+GNN_CATEGORIES = ['gnn_unsupervised', 'gnn_baselines']
+GNN_SUPERVISED_CATEGORIES = ['gnn_supervised', 'gnn_supervised_40',
+                             'gnn_supervised_60', 'gnn_supervised_80']
 
 # ============= METRICS =============
 METRICS = {

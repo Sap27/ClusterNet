@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from torch_geometric.nn import GCNConv, dense_mincut_pool
+from torch_geometric.nn import GCNConv
 from torch_geometric.utils import to_dense_adj
 from torch_geometric.data import Data
 from typing import List, Optional, Tuple
@@ -39,19 +39,27 @@ class MinCutModel(nn.Module):
         in_channels: int,
         hidden_channels: int,
         num_clusters: int,
-        dropout: float = 0.5
+        dropout: float = 0.5,
+        temperature: float = 1.0,
     ):
         super().__init__()
         
         self.num_clusters = num_clusters
         self.dropout = dropout
+        self.temperature = temperature
         
         # GCN encoder
         self.conv1 = GCNConv(in_channels, hidden_channels)
+        self.bn1 = nn.BatchNorm1d(hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        self.bn2 = nn.BatchNorm1d(hidden_channels)
         
-        # Cluster assignment layer
-        self.pool = nn.Linear(hidden_channels, num_clusters)
+        # Skip connection: pool sees [GCN output || raw features]
+        # to prevent over-smoothing from destroying discriminative signal
+        pool_input_dim = hidden_channels + in_channels
+        self.pool = nn.Linear(pool_input_dim, num_clusters)
+        nn.init.xavier_uniform_(self.pool.weight, gain=5.0)
+        nn.init.uniform_(self.pool.bias, -1.0, 1.0)
     
     def forward(
         self, 
@@ -70,31 +78,43 @@ class MinCutModel(nn.Module):
             mincut_loss: MinCut objective
             ortho_loss: Orthogonality regularization
         """
-        # GCN encoding
-        x = F.relu(self.conv1(x, edge_index))
+        # GCN encoding with batch norm
+        x_raw = x
+        x = self.bn1(F.relu(self.conv1(x, edge_index)))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = F.relu(self.conv2(x, edge_index))
+        x = self.bn2(F.relu(self.conv2(x, edge_index)))
         
-        # Cluster assignments (soft)
-        s = self.pool(x)
+        # Skip connection: concatenate raw features to prevent over-smoothing
+        x_cat = torch.cat([x, x_raw], dim=-1)
         
-        # Compute MinCut loss
+        # Cluster assignments — temperature < 1 sharpens softmax to break
+        # uniform-assignment collapse where gradients vanish
+        s_logits = self.pool(x_cat) / self.temperature
+        s = F.softmax(s_logits, dim=-1)
+        
+        # Compute MinCut + orthogonality loss manually (Bianchi et al., 2020)
         adj = to_dense_adj(edge_index, max_num_nodes=x.size(0)).squeeze(0)
+        d = adj.sum(dim=-1)
         
-        # Add batch dimension for dense_mincut_pool
-        x_batch = x.unsqueeze(0)
-        adj_batch = adj.unsqueeze(0)
-        s_batch = s.unsqueeze(0)
+        # MinCut loss: -Tr(S^T A S) / Tr(S^T D S)
+        st_a_s = torch.matmul(s.t(), torch.matmul(adj, s))
+        st_d_s = torch.matmul(s.t(), s * d.unsqueeze(-1))
+        mincut_loss = -torch.trace(st_a_s) / (torch.trace(st_d_s) + 1e-8)
         
-        _, _, mincut_loss, ortho_loss = dense_mincut_pool(x_batch, adj_batch, s_batch)
+        # Orthogonality loss: ||S^T S / ||S^T S||_F - I_K / sqrt(K)||_F
+        ss = torch.matmul(s.t(), s)
+        ss_norm = ss / (torch.norm(ss, p='fro') + 1e-8)
+        eye_k = torch.eye(self.num_clusters, device=s.device) / (self.num_clusters ** 0.5)
+        ortho_loss = torch.norm(ss_norm - eye_k, p='fro')
         
         return s, mincut_loss, ortho_loss
     
     def get_embeddings(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
         """Get node embeddings."""
-        x = F.relu(self.conv1(x, edge_index))
-        x = F.relu(self.conv2(x, edge_index))
-        return x
+        x_raw = x
+        x = self.bn1(F.relu(self.conv1(x, edge_index)))
+        x = self.bn2(F.relu(self.conv2(x, edge_index)))
+        return torch.cat([x, x_raw], dim=-1)
 
 
 @register_algorithm('mincut', aliases=['mincut_pool', 'mincut_clustering', 'spectral_gnn'])
@@ -132,9 +152,11 @@ class MinCutCluster(BaseGNNClustering):
         lr: float = 0.01,
         dropout: float = 0.5,
         mincut_weight: float = 1.0,
-        ortho_weight: float = 1.0,
+        ortho_weight: float = 5.0,
+        temperature: float = 0.3,
         **kwargs
     ):
+        self.temperature = temperature
         super().__init__(
             G,
             num_clusters=num_clusters,
@@ -154,7 +176,8 @@ class MinCutCluster(BaseGNNClustering):
             in_channels=self.data.x.shape[1],
             hidden_channels=self.hidden_channels,
             num_clusters=self.num_clusters,
-            dropout=self.dropout
+            dropout=self.dropout,
+            temperature=self.temperature,
         )
     
     def _train_step(self, data: Data) -> float:

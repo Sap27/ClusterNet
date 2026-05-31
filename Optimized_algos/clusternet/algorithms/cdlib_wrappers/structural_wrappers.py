@@ -213,7 +213,8 @@ class AGDLWrapper(BaseAlgorithm):
                 except:
                     if best_communities is None:
                         best_communities = communities
-            except:
+            except Exception as e:
+                print(f"  AGDL failed for nc={nc}, kc={kc}: {e}", flush=True)
                 continue
         
         if best_communities is not None:

@@ -1,0 +1,52 @@
+\begin{table*}[t]
+\centering
+\caption{\textbf{Table S2.} LFR scalability ($\mu{=}0.15$): mean AMI and runtime (seconds). \textbf{Bold}: best AMI per column per paradigm. Dash: not run or failed. \textbf{SBM} and \textbf{Nested SBM}: AMI from local scalability CSV when the same $N$ exists; otherwise AMI stays GPU; \textbf{Time} always from GPU. Other classical rows: GPU scalability CSV plus local supplement for algorithms missing on GPU. GNN: nested path under \texttt{results-clusternet-classical-sca-gpu-3}.}
+\label{tab:supp_lfr_scalability_full}
+\footnotesize
+\begin{tabular}{llrrrrrrrrrr}
+\toprule
+\textbf{Algorithm} & \textbf{Family} & \multicolumn{2}{c}{$N\!=500$} & \multicolumn{2}{c}{$N\!=1K$} & \multicolumn{2}{c}{$N\!=2K$} & \multicolumn{2}{c}{$N\!=5K$} & \multicolumn{2}{c}{$N\!=25K$} \\
+ & & AMI & Time & AMI & Time & AMI & Time & AMI & Time & AMI & Time \\
+\midrule
+Leiden & Modularity & \textbf{1.000} & 0.02 & \textbf{1.000} & 0.04 & 0.996 & 0.11 & 0.951 & 0.22 & 0.859 & 1.35 \\
+Louvain & Modularity & \textbf{1.000} & 0.03 & \textbf{1.000} & 0.07 & 0.996 & 0.18 & 0.953 & 0.39 & 0.860 & 3.48 \\
+FastGreedy & Modularity & 0.935 & 0.0097 & 0.881 & 0.02 & 0.878 & 0.05 & 0.831 & 0.13 & 0.774 & 1.29 \\
+Walktrap & Modularity & \textbf{1.000} & 0.01 & \textbf{0.998} & 0.04 & -- & -- & 0.942 & 0.90 & -- & -- \\
+Label Prop. & Propagation & \textbf{1.000} & 0.0076 & \textbf{1.000} & 0.02 & \textbf{1.000} & 0.04 & \textbf{1.000} & 0.11 & \textbf{1.000} & 1.35 \\
+Spinglass & Propagation & 0.989 & 2.28 & 0.959 & 4.10 & 0.834 & 10.8 & 0.752 & 23.8 & 0.617 & 270 \\
+SCAN & Propagation & 0.838 & 0.04 & 0.846 & 0.08 & 0.852 & 0.20 & 0.875 & 0.43 & 0.880 & 2.35 \\
+Spectral & Spectral & 0.990 & 0.13 & 0.911 & 0.26 & 0.854 & 1.58 & 0.802 & 9.48 & 0.698 & 1015 \\
+Leading Eigen. & Spectral & 0.564 & 0.03 & 0.499 & 0.08 & 0.583 & 0.31 & 0.548 & 0.90 & 0.545 & 14.6 \\
+SBM & Statistical & -- & 0.02 & -- & 0.04 & 0.996 & 0.11 & -- & 0.22 & 0.859 & 1.34 \\
+Nested SBM & Statistical & \textbf{1.000} & 0.02 & \textbf{1.000} & 0.04 & 0.996 & 0.10 & 0.952 & 0.22 & 0.858 & 1.31 \\
+EM & Statistical & 0.563 & 0.97 & 0.522 & 2.21 & 0.410 & 6.61 & 0.322 & 17.6 & 0.288 & 219 \\
+RB-Pots & Resolution & \textbf{1.000} & 0.03 & \textbf{1.000} & 0.06 & 0.996 & 0.25 & 0.952 & 0.33 & 0.859 & 2.29 \\
+RBer-Pots & Resolution & \textbf{1.000} & 0.03 & \textbf{1.000} & 0.06 & \textbf{1.000} & 0.24 & 0.967 & 0.32 & 0.859 & 2.40 \\
+CPM & Resolution & \textbf{1.000} & 0.03 & \textbf{0.999} & 0.06 & \textbf{1.000} & 0.15 & \textbf{1.000} & 0.52 & \textbf{1.000} & 2.40 \\
+Async Fluid & Density & 0.965 & 0.04 & 0.914 & 0.06 & 0.877 & 0.15 & 0.841 & 0.36 & 0.773 & 1.97 \\
+Surprise & Density & \textbf{1.000} & 0.03 & \textbf{1.000} & 0.06 & \textbf{1.000} & 0.17 & \textbf{1.000} & 0.34 & \textbf{1.000} & 2.48 \\
+Angel & Overlapping & 0.896 & 0.56 & 0.955 & 1.08 & 0.985 & 2.70 & 0.992 & 5.55 & \textbf{0.999} & 29.2 \\
+Demon & Overlapping & 0.656 & 0.38 & 0.905 & 0.75 & 0.974 & 1.97 & 0.988 & 4.49 & \textbf{0.998} & 41.7 \\
+$k$-Clique & Overlapping & 0.629 & 0.12 & 0.892 & 0.16 & 0.975 & 0.49 & 0.989 & 1.22 & \textbf{0.998} & 5.62 \\
+SCORE & DREAM & 0.969 & 0.12 & 0.825 & 0.23 & 0.677 & 0.86 & 0.533 & 1.16 & 0.397 & 224 \\
+TeamCS & DREAM & \textbf{1.000} & 0.72 & \textbf{1.000} & 0.30 & \textbf{1.000} & 0.55 & \textbf{1.000} & 3.10 & \textbf{1.000} & 91.8 \\
+BigS2 & DREAM & 0.774 & 0.15 & 0.670 & 0.26 & 0.555 & 0.52 & 0.510 & 1.15 & 0.516 & 14.3 \\
+CSBIO-IITM2 & DREAM & \textbf{1.000} & 5.18 & \textbf{1.000} & 5.85 & \textbf{1.000} & 7.35 & \textbf{1.000} & 10.8 & 0.993 & 50.6 \\
+AGDL & Other & 0.333 & 0.50 & 0.333 & 1.27 & 0.996 & 45.5 & 0.952 & 42.6 & 0.858 & 1019 \\
+DER & Other & 0.368 & 0.03 & 0.367 & 0.10 & -- & -- & 0.323 & 1.20 & -- & -- \\
+GDMP2 & Other & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+SimNet & Other & 0.956 & 0.02 & 0.874 & 4.15 & -- & -- & 0.538 & 270 & -- & -- \\
+SVT & Other & 0.843 & 0.55 & 0.811 & 2.01 & -- & -- & 0.849 & 62.8 & -- & -- \\
+Tusk & Other & 0.977 & 0.05 & 0.989 & 0.25 & -- & -- & 0.881 & 23.2 & -- & -- \\
+\midrule
+DMoN & Diff.\ pool & 0.765 & 4.43 & 0.745 & 4.17 & 0.697 & 4.83 & 0.643 & 5.54 & 0.257 & 33.9 \\
+MinCutPool & Diff.\ pool & 0.181 & 2.94 & 0.141 & 3.15 & 0.093 & 3.84 & 0.098 & 4.54 & 0.469 & 33.5 \\
+VGAE+KM & Repr.\ learn. & 0.722 & 7.83 & 0.680 & 12.1 & 0.498 & 28.9 & 0.491 & 59.5 & 0.496 & 386 \\
+DGI+KM & Repr.\ learn. & 0.425 & 3.47 & 0.434 & 3.70 & 0.392 & 4.99 & 0.351 & 6.90 & 0.299 & 91.3 \\
+GCN (20\%) & Semi-sup. & 0.298 & 2.46 & 0.423 & 2.54 & 0.495 & 3.14 & 0.470 & 4.08 & 0.567 & 17.1 \\
+GAT (20\%) & Semi-sup. & 0.569 & 3.50 & 0.559 & 3.61 & 0.578 & 4.30 & 0.406 & 5.22 & 0.239 & 20.9 \\
+MLP+KM & Baseline & 0.008 & 0.09 & 0.017 & 0.15 & 0.005 & 0.42 & 0.002 & 1.01 & 0.001 & 14.9 \\
+Node2Vec+KM & Baseline & \textbf{1.000} & 8.87 & \textbf{0.989} & 17.1 & \textbf{0.991} & 44.7 & \textbf{0.990} & 90.6 & \textbf{0.988} & 565 \\
+\bottomrule
+\end{tabular}
+\end{table*}

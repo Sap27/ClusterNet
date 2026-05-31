@@ -1,0 +1,147 @@
+\begin{longtable}{llrrrrr}
+\caption{GO and KEGG enrichment fractions for all algorithms on four biological networks. Values are fraction of tested communities ($\geq$5 nodes) with at least one significant term (BH-adjusted $p < 0.05$). Sign coherence reported for SIGNOR only.}
+\label{tab:bio_enrichment_full} \\
+\toprule
+Network & Algorithm & $K$ & Tested & GO frac & KEGG frac & Sign coh. \\
+\midrule
+\endfirsthead
+\toprule
+Network & Algorithm & $K$ & Tested & GO frac & KEGG frac & Sign coh. \\
+\midrule
+\endhead
+SIGNOR & SBM & 13 & 13 & 1.000 & 1.000 & 0.664 \\
+SIGNOR & Nested SBM & 20 & 20 & 1.000 & 0.850 & 0.694 \\
+SIGNOR & GAT (sup.) \textit{(GNN)} & 9 & 9 & 1.000 & 0.889 & 0.711 \\
+SIGNOR & DER & 2 & 2 & 1.000 & 1.000 & 0.689 \\
+SIGNOR & RB-Pots & 101 & 24 & 1.000 & 0.875 & 0.768 \\
+SIGNOR & Nested SBM (coarse) & 3 & 3 & 1.000 & 1.000 & 0.732 \\
+SIGNOR & MLP+KM \textit{(GNN)} & 110 & 46 & 1.000 & 0.891 & 0.875 \\
+SIGNOR & VGAE+KM \textit{(GNN)} & 110 & 102 & 0.980 & 0.707 & 0.757 \\
+SIGNOR & MinCutPool \textit{(GNN)} & 110 & 110 & 0.979 & 0.633 & 0.720 \\
+SIGNOR & DEMON & 35 & 33 & 0.970 & 0.879 & 0.723 \\
+SIGNOR & AGDL & 110 & 30 & 0.967 & 0.800 & 0.774 \\
+SIGNOR & DMoN \textit{(GNN)} & 108 & 108 & 0.966 & 0.626 & 0.702 \\
+SIGNOR & Louvain & 106 & 28 & 0.964 & 0.786 & 0.772 \\
+SIGNOR & GCN (sup.) \textit{(GNN)} & 9 & 9 & 0.963 & 0.852 & 0.701 \\
+SIGNOR & Leiden & 107 & 27 & 0.963 & 0.815 & 0.772 \\
+SIGNOR & DGI+KM \textit{(GNN)} & 110 & 101 & 0.957 & 0.657 & 0.763 \\
+SIGNOR & Spinglass & 25 & 25 & 0.920 & 0.840 & 0.708 \\
+SIGNOR & Node2Vec+KM \textit{(GNN)} & 110 & 109 & 0.890 & 0.624 & 0.707 \\
+SIGNOR & FastGreedy & 139 & 33 & 0.879 & 0.515 & 0.821 \\
+SIGNOR & SCORE & 53 & 53 & 0.849 & 0.415 & 0.838 \\
+SIGNOR & SCAN & 55 & 12 & 0.833 & 0.500 & 0.883 \\
+SIGNOR & EM & 10 & 10 & 0.800 & 0.400 & 0.819 \\
+SIGNOR & Label Prop. & 137 & 28 & 0.786 & 0.500 & 0.867 \\
+SIGNOR & K-Clique & 151 & 18 & 0.778 & 0.500 & 0.812 \\
+SIGNOR & RBer-Pots & 1433 & 57 & 0.772 & 0.509 & 0.808 \\
+SIGNOR & Walktrap & 548 & 128 & 0.758 & 0.383 & 0.827 \\
+SIGNOR & ANGEL & 220 & 65 & 0.754 & 0.431 & 0.837 \\
+SIGNOR & SVT & 143 & 132 & 0.750 & 0.386 & 0.762 \\
+SIGNOR & Spectral & 53 & 16 & 0.750 & 0.438 & 0.806 \\
+SIGNOR & Async Fluid & 336 & 58 & 0.741 & 0.414 & 0.858 \\
+SIGNOR & TeamCS & 364 & 200 & 0.650 & 0.300 & 0.759 \\
+SIGNOR & Infomap & 435 & 200 & 0.635 & 0.290 & 0.759 \\
+SIGNOR & Surprise & 739 & 200 & 0.580 & 0.295 & 0.751 \\
+SIGNOR & CSBIO-IITM2 & 729 & 200 & 0.565 & 0.280 & 0.778 \\
+SIGNOR & CPM & 1555 & 200 & 0.420 & 0.190 & 0.799 \\
+SIGNOR & BiGS2 & 181 & 137 & 0.307 & 0.161 & 0.724 \\
+\midrule
+Human GRN & AGDL & 4 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & ANGEL & 1 & 1 & 1.000 & 1.000 & --- \\
+Human GRN & DEMON & 6 & 6 & 1.000 & 1.000 & --- \\
+Human GRN & DGI+KM \textit{(GNN)} & 4 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & Label Prop. & 1 & 1 & 1.000 & 1.000 & --- \\
+Human GRN & Leading Eigen & 2 & 2 & 1.000 & 1.000 & --- \\
+Human GRN & DMoN \textit{(GNN)} & 4 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & Louvain & 5 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & VGAE+KM \textit{(GNN)} & 4 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & Walktrap & 1 & 1 & 1.000 & 1.000 & --- \\
+Human GRN & Node2Vec+KM \textit{(GNN)} & 4 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & RB-Pots & 6 & 4 & 1.000 & 0.875 & --- \\
+Human GRN & Nested SBM (coarse) & 6 & 6 & 1.000 & 0.950 & --- \\
+Human GRN & MLP+KM \textit{(GNN)} & 4 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & MinCutPool \textit{(GNN)} & 4 & 4 & 1.000 & 1.000 & --- \\
+Human GRN & Leiden & 4 & 4 & 0.900 & 0.900 & --- \\
+Human GRN & Nested SBM & 51 & 49 & 0.857 & 0.552 & --- \\
+Human GRN & SBM & 50 & 46 & 0.856 & 0.633 & --- \\
+Human GRN & GCN (sup.) \textit{(GNN)} & 9 & 9 & 0.852 & 0.778 & --- \\
+Human GRN & FastGreedy & 8 & 6 & 0.833 & 0.833 & --- \\
+Human GRN & GAT (sup.) \textit{(GNN)} & 4 & 2 & 0.800 & 0.633 & --- \\
+Human GRN & RBer-Pots & 10269 & 6 & 0.750 & 0.833 & --- \\
+Human GRN & TeamCS & 99 & 67 & 0.701 & 0.463 & --- \\
+Human GRN & Spectral & 93 & 74 & 0.692 & 0.571 & --- \\
+Human GRN & SCAN & 6 & 5 & 0.600 & 0.600 & --- \\
+Human GRN & Surprise & 12723 & 69 & 0.508 & 0.544 & --- \\
+Human GRN & Infomap & 7 & 2 & 0.500 & 0.500 & --- \\
+Human GRN & Async Fluid & 93 & 80 & 0.490 & 0.420 & --- \\
+Human GRN & SCORE & 93 & 89 & 0.393 & 0.337 & --- \\
+Human GRN & CPM & 15408 & 149 & 0.218 & 0.443 & --- \\
+Human GRN & CSBIO-IITM2 & 2876 & 266 & 0.192 & 0.293 & --- \\
+Human GRN & BiGS2 & 323 & 296 & 0.120 & 0.211 & --- \\
+\midrule
+BioGRID & AGDL & 8 & 7 & 1.000 & 1.000 & --- \\
+BioGRID & ANGEL & 4 & 1 & 1.000 & 1.000 & --- \\
+BioGRID & DEMON & 49 & 49 & 1.000 & 1.000 & --- \\
+BioGRID & DGI+KM \textit{(GNN)} & 9 & 9 & 1.000 & 1.000 & --- \\
+BioGRID & Infomap & 44 & 9 & 1.000 & 0.889 & --- \\
+BioGRID & Label Prop. & 1 & 1 & 1.000 & 1.000 & --- \\
+BioGRID & Leading Eigen & 2 & 2 & 1.000 & 1.000 & --- \\
+BioGRID & DMoN \textit{(GNN)} & 9 & 9 & 1.000 & 0.889 & --- \\
+BioGRID & Leiden & 8 & 7 & 1.000 & 1.000 & --- \\
+BioGRID & Walktrap & 373 & 15 & 1.000 & 0.800 & --- \\
+BioGRID & Node2Vec+KM \textit{(GNN)} & 9 & 9 & 1.000 & 1.000 & --- \\
+BioGRID & RB-Pots & 7 & 7 & 1.000 & 1.000 & --- \\
+BioGRID & Nested SBM (coarse) & 5 & 5 & 1.000 & 1.000 & --- \\
+BioGRID & MLP+KM \textit{(GNN)} & 9 & 6 & 1.000 & 1.000 & --- \\
+BioGRID & MinCutPool \textit{(GNN)} & 9 & 9 & 1.000 & 1.000 & --- \\
+BioGRID & Louvain & 7 & 7 & 1.000 & 1.000 & --- \\
+BioGRID & TeamCS & 24 & 9 & 1.000 & 0.889 & --- \\
+BioGRID & VGAE+KM \textit{(GNN)} & 9 & 9 & 1.000 & 1.000 & --- \\
+BioGRID & SCAN & 41 & 32 & 0.969 & 0.750 & --- \\
+BioGRID & GCN (sup.) \textit{(GNN)} & 8 & 8 & 0.958 & 0.917 & --- \\
+BioGRID & GAT (sup.) \textit{(GNN)} & 8 & 8 & 0.921 & 0.884 & --- \\
+BioGRID & SBM & 191 & 190 & 0.911 & 0.721 & --- \\
+BioGRID & Async Fluid & 89 & 89 & 0.910 & 0.809 & --- \\
+BioGRID & Nested SBM & 232 & 232 & 0.884 & 0.724 & --- \\
+BioGRID & Spectral & 89 & 72 & 0.875 & 0.750 & --- \\
+BioGRID & FastGreedy & 25 & 9 & 0.667 & 0.667 & --- \\
+BioGRID & SCORE & 89 & 88 & 0.636 & 0.455 & --- \\
+BioGRID & RBer-Pots & 2151 & 235 & 0.510 & 0.500 & --- \\
+BioGRID & BiGS2 & 446 & 388 & 0.459 & 0.392 & --- \\
+BioGRID & Surprise & 1957 & 583 & 0.413 & 0.411 & --- \\
+BioGRID & CSBIO-IITM2 & 976 & 501 & 0.387 & 0.365 & --- \\
+BioGRID & CPM & 2613 & 1091 & 0.345 & 0.326 & --- \\
+\midrule
+GTEx & GCN (sup.) \textit{(GNN)} & 8 & 8 & 1.000 & 0.792 & --- \\
+GTEx & Nested SBM (coarse) & 6 & 6 & 1.000 & 0.667 & --- \\
+GTEx & GAT (sup.) \textit{(GNN)} & 7 & 7 & 0.952 & 0.685 & --- \\
+GTEx & Leading Eigen & 409 & 46 & 0.717 & 0.478 & --- \\
+GTEx & Spectral & 53 & 7 & 0.714 & 0.143 & --- \\
+GTEx & AGDL & 410 & 48 & 0.667 & 0.438 & --- \\
+GTEx & Label Prop. & 518 & 79 & 0.658 & 0.342 & --- \\
+GTEx & RB-Pots & 410 & 49 & 0.653 & 0.429 & --- \\
+GTEx & Louvain & 410 & 49 & 0.653 & 0.429 & --- \\
+GTEx & Leiden & 410 & 49 & 0.653 & 0.429 & --- \\
+GTEx & FastGreedy & 415 & 49 & 0.633 & 0.449 & --- \\
+GTEx & TeamCS & 164 & 84 & 0.607 & 0.321 & --- \\
+GTEx & Infomap & 468 & 80 & 0.600 & 0.312 & --- \\
+GTEx & MLP+KM \textit{(GNN)} & 411 & 145 & 0.579 & 0.248 & --- \\
+GTEx & SCAN & 100 & 58 & 0.569 & 0.362 & --- \\
+GTEx & Async Fluid & 531 & 80 & 0.562 & 0.338 & --- \\
+GTEx & CSBIO-IITM2 & 2185 & 58 & 0.552 & 0.379 & --- \\
+GTEx & MinCutPool \textit{(GNN)} & 196 & 159 & 0.508 & 0.197 & --- \\
+GTEx & RBer-Pots & 1082 & 128 & 0.492 & 0.242 & --- \\
+GTEx & BiGS2 & 131 & 122 & 0.467 & 0.262 & --- \\
+GTEx & Surprise & 1138 & 134 & 0.463 & 0.224 & --- \\
+GTEx & SCORE & 53 & 52 & 0.462 & 0.154 & --- \\
+GTEx & CPM & 1096 & 132 & 0.455 & 0.227 & --- \\
+GTEx & Walktrap & 2761 & 33 & 0.455 & 0.182 & --- \\
+GTEx & DGI+KM \textit{(GNN)} & 411 & 209 & 0.436 & 0.137 & --- \\
+GTEx & VGAE+KM \textit{(GNN)} & 411 & 292 & 0.340 & 0.108 & --- \\
+GTEx & DMoN \textit{(GNN)} & 339 & 330 & 0.306 & 0.101 & --- \\
+GTEx & Node2Vec+KM \textit{(GNN)} & 411 & 328 & 0.299 & 0.098 & --- \\
+GTEx & Nested SBM & 71 & 71 & 0.282 & 0.141 & --- \\
+GTEx & SBM & 88 & 88 & 0.227 & 0.125 & --- \\
+\midrule
+\bottomrule
+\end{longtable}

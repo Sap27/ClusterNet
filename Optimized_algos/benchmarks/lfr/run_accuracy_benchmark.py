@@ -18,6 +18,7 @@ Output:
 
 import os
 import sys
+import re
 import json
 import time
 import argparse
@@ -32,7 +33,8 @@ SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent.parent))
 
-from config import ACCURACY_CONFIG, NETWORK_PARAMS, ALGORITHMS, ACTIVE_CATEGORIES
+from config import (ACCURACY_CONFIG, NETWORK_PARAMS, ALGORITHMS,
+                    ACTIVE_CATEGORIES, GNN_CATEGORIES, GNN_SUPERVISED_CATEGORIES)
 from lfr_generator import LFRGenerator, save_network, load_network
 from algorithm_runner import AlgorithmRunner
 from metrics import compute_all_metrics
@@ -79,13 +81,13 @@ if HAS_TORCH:
             self.conv1 = GCNConv(in_dim, hidden_dim)
             self.conv2 = GCNConv(hidden_dim, hidden_dim)
             self.classifier = nn.Linear(hidden_dim, num_classes)
-        
+       
         def forward(self, x, edge_index):
             x = F.relu(self.conv1(x, edge_index))
             x = F.dropout(x, p=0.5, training=self.training)
             x = self.conv2(x, edge_index)
             return self.classifier(x)
-    
+   
     class GATModel(nn.Module):
         """GAT for semi-supervised community detection."""
         def __init__(self, in_dim, hidden_dim, num_classes):
@@ -93,13 +95,13 @@ if HAS_TORCH:
             self.conv1 = GATConv(in_dim, hidden_dim, heads=4, concat=False)
             self.conv2 = GATConv(hidden_dim, hidden_dim, heads=4, concat=False)
             self.classifier = nn.Linear(hidden_dim, num_classes)
-        
+       
         def forward(self, x, edge_index):
             x = F.elu(self.conv1(x, edge_index))
             x = F.dropout(x, p=0.5, training=self.training)
             x = self.conv2(x, edge_index)
             return self.classifier(x)
-    
+   
     class SAGEModel(nn.Module):
         """GraphSAGE for semi-supervised community detection."""
         def __init__(self, in_dim, hidden_dim, num_classes):
@@ -107,13 +109,13 @@ if HAS_TORCH:
             self.conv1 = SAGEConv(in_dim, hidden_dim)
             self.conv2 = SAGEConv(hidden_dim, hidden_dim)
             self.classifier = nn.Linear(hidden_dim, num_classes)
-        
+       
         def forward(self, x, edge_index):
             x = F.relu(self.conv1(x, edge_index))
             x = F.dropout(x, p=0.5, training=self.training)
             x = self.conv2(x, edge_index)
             return self.classifier(x)
-    
+   
     class DMoNModelLegacy(nn.Module):
         """Legacy DMoN for semi-supervised (kept for backwards compatibility)."""
         def __init__(self, in_dim, hidden_dim, num_clusters):
@@ -123,7 +125,7 @@ if HAS_TORCH:
             self.conv3 = GCNConv(hidden_dim, hidden_dim)
             self.cluster = nn.Linear(hidden_dim, num_clusters)
             nn.init.xavier_uniform_(self.cluster.weight, gain=2.0)
-        
+       
         def forward(self, x, edge_index):
             x = F.relu(self.conv1(x, edge_index))
             x = F.dropout(x, p=0.3, training=self.training)
@@ -145,12 +147,12 @@ if HAS_TORCH:
 # PARTITION SAVING UTILITIES
 # =============================================================================
 
-def save_partition(partitions_dir: Path, network_name: str, algorithm: str, 
+def save_partition(partitions_dir: Path, network_name: str, algorithm: str,
                    partition: np.ndarray, ground_truth: np.ndarray = None,
                    extra_info: dict = None):
     """
     Save algorithm partition (community assignments) to file.
-    
+   
     Args:
         partitions_dir: Directory to save partitions
         network_name: Name of the network (e.g., 'lfr_n1000_mu0.3_r1')
@@ -161,7 +163,7 @@ def save_partition(partitions_dir: Path, network_name: str, algorithm: str,
     """
     partitions_dir = Path(partitions_dir)
     partitions_dir.mkdir(parents=True, exist_ok=True)
-    
+   
     # Create filename with algorithm and network info
     if extra_info:
         # Include extra info in filename (e.g., feature_type or feature_distance)
@@ -169,14 +171,14 @@ def save_partition(partitions_dir: Path, network_name: str, algorithm: str,
         filename = f"{network_name}_{algorithm}_{extra_str}.json"
     else:
         filename = f"{network_name}_{algorithm}.json"
-    
+   
     # Convert partition to communities format (list of lists)
     n_clusters = len(np.unique(partition))
     communities = [[] for _ in range(n_clusters)]
     cluster_map = {old: new for new, old in enumerate(np.unique(partition))}
     for node, cluster in enumerate(partition):
         communities[cluster_map[cluster]].append(int(node))
-    
+   
     # Build output data
     output = {
         'network': network_name,
@@ -186,18 +188,18 @@ def save_partition(partitions_dir: Path, network_name: str, algorithm: str,
         'partition': partition.tolist(),  # Node-to-cluster assignments
         'communities': communities,  # List of node lists per community
     }
-    
+   
     if ground_truth is not None:
         output['ground_truth'] = ground_truth.tolist()
-    
+   
     if extra_info:
         output['extra_info'] = extra_info
-    
+   
     # Save to JSON
     filepath = partitions_dir / filename
     with open(filepath, 'w') as f:
         json.dump(output, f, indent=2)
-    
+   
     return filepath
 
 
@@ -217,9 +219,9 @@ def communities_to_partition(communities: list, n_nodes: int) -> np.ndarray:
 def dmon_loss(s, edge_index, num_nodes):
     """
     DMoN loss from paper (NO orthogonality - that's MinCut!):
-    
+   
     L = -1/(2m) * Tr(C^T B C) + sqrt(k)/N * ||cluster_sizes||_2 - 1
-    
+   
     Term 1: Modularity maximization
     Term 2: Collapse regularizer (penalizes putting all nodes in one cluster)
     """
@@ -227,29 +229,29 @@ def dmon_loss(s, edge_index, num_nodes):
     m = edge_index.size(1) / 2
     k = s.size(1)
     n = num_nodes
-    
+   
     # Degree vector
     deg = torch.zeros(n, device=s.device)
     deg.scatter_add_(0, row, torch.ones(row.size(0), device=s.device))
-    
+   
     # === MODULARITY: Tr(C^T B C) / 2m ===
     # B = A - dd^T / 2m (modularity matrix)
     adj_term = (s[row] * s[col]).sum()  # Tr(C^T A C)
     cluster_degrees = torch.mm(deg.unsqueeze(0), s).squeeze()
     degree_term = (cluster_degrees ** 2).sum()  # Tr(C^T dd^T C)
     modularity = (adj_term - degree_term / (2 * m)) / (2 * m)
-    
+   
     # === COLLAPSE REGULARIZER (DMoN paper) ===
     # sqrt(k)/N * ||cluster_sizes||_2 - 1
     # This is 0 when balanced, positive when collapsed
     cluster_sizes = s.sum(dim=0)
     collapse_reg = (np.sqrt(k) / n) * torch.norm(cluster_sizes, p=2) - 1
-    
+   
     # Scale collapse_reg to be effective (paper coefficient is tiny for large N)
     # When collapsed: collapse_reg ≈ sqrt(k) - 1 ≈ 6 for k=50
     # When balanced: collapse_reg = 0
     # Modularity is in range [0, ~0.5], so scale collapse_reg down
-    
+   
     return -modularity + 0.5 * collapse_reg
 
 
@@ -281,12 +283,12 @@ def structural_features(G, dim=32):
     n = G.number_of_nodes()
     degrees = dict(G.degree())
     clustering = nx.clustering(G)
-    
+   
     try:
         pagerank = nx.pagerank(G, max_iter=50)
     except:
         pagerank = {i: 1/n for i in range(n)}
-    
+   
     features = []
     for i in range(n):
         neighbors = list(G.neighbors(i))
@@ -300,11 +302,11 @@ def structural_features(G, dim=32):
             np.std([degrees.get(j, 0) for j in neighbors]) if len(neighbors) > 1 else 0,
         ]
         features.append(f)
-    
+   
     features = np.array(features)
     if features.shape[1] < dim:
         features = np.hstack([features, np.zeros((n, dim - features.shape[1]))])
-    
+   
     return torch.tensor(features[:, :dim], dtype=torch.float)
 
 
@@ -312,27 +314,27 @@ def spectral_features(G, dim=32):
     """Spectral features (Laplacian eigenvectors)."""
     import networkx as nx
     n = G.number_of_nodes()
-    
+   
     try:
         A = nx.adjacency_matrix(G).astype(np.float64)
         degrees = np.array(A.sum(axis=1)).flatten()
         degrees[degrees == 0] = 1
         D_inv_sqrt = diags(1.0 / np.sqrt(degrees))
         L_norm = diags(np.ones(n)) - D_inv_sqrt @ A @ D_inv_sqrt
-        
+       
         k = min(dim, n - 2)
         eigenvalues, eigenvectors = eigsh(L_norm, k=k+1, which='SM', tol=1e-6)
-        
+       
         idx = np.argsort(eigenvalues)
         eigenvectors = eigenvectors[:, idx][:, 1:k+1]
         eigenvectors = eigenvectors / (np.linalg.norm(eigenvectors, axis=0, keepdims=True) + 1e-8)
-        
+       
         if eigenvectors.shape[1] < dim:
             padding = np.zeros((n, dim - eigenvectors.shape[1]))
             eigenvectors = np.hstack([eigenvectors, padding])
-        
+       
         return torch.tensor(eigenvectors[:, :dim], dtype=torch.float)
-    
+   
     except Exception as e:
         return structural_features(G, dim)
 
@@ -342,7 +344,7 @@ def homophily_features(n, gt, k, feature_dim=32, feature_distance=1.0, noise_std
     np.random.seed(seed)
     centers = np.random.randn(k, feature_dim) * feature_distance
     features = np.array([
-        centers[gt[i]] + np.random.randn(feature_dim) * noise_std 
+        centers[gt[i]] + np.random.randn(feature_dim) * noise_std
         for i in range(n)
     ])
     return torch.tensor(features, dtype=torch.float)
@@ -361,7 +363,7 @@ def train_gnn_semisupervised(
     edge_index = get_edge_index(G).to(DEVICE)
     features = features.to(DEVICE)
     y = torch.tensor(gt, dtype=torch.long, device=DEVICE)
-    
+   
     # Create train mask
     train_mask = np.zeros(n, dtype=bool)
     for c in range(k):
@@ -370,10 +372,10 @@ def train_gnn_semisupervised(
             n_label = max(1, int(len(c_nodes) * labeled_ratio))
             train_mask[np.random.choice(c_nodes, min(n_label, len(c_nodes)), replace=False)] = True
     train_mask = torch.tensor(train_mask, device=DEVICE)
-    
+   
     model = model_class(features.size(1), hidden_dim, k).to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
-    
+   
     model.train()
     for epoch in range(epochs):
         optimizer.zero_grad()
@@ -381,7 +383,7 @@ def train_gnn_semisupervised(
         loss = F.cross_entropy(out[train_mask], y[train_mask])
         loss.backward()
         optimizer.step()
-    
+   
     model.eval()
     with torch.no_grad():
         out = model(features, edge_index)
@@ -393,34 +395,34 @@ def train_dmon_unsupervised(G, k, features, epochs=300, hidden_dim=64):
     n = G.number_of_nodes()
     edge_index = get_edge_index(G).to(DEVICE)
     features = features.to(DEVICE)
-    
+   
     # Build adjacency
     adj = torch.zeros(n, n, device=DEVICE)
     adj[edge_index[0], edge_index[1]] = 1
     d = adj.sum(dim=1, keepdim=True)
     m = adj.sum() / 2
     B = adj - torch.mm(d, d.t()) / (2 * m + 1e-10)
-    
+   
     model = DMoNModel(features.size(1), hidden_dim, k).to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    
+   
     model.train()
     for epoch in range(epochs):
         optimizer.zero_grad()
         s = model(features, edge_index)
-        
+       
         # Modularity loss
         mod_loss = -torch.trace(torch.mm(torch.mm(s.t(), B), s)) / (2 * m + 1e-10)
-        
+       
         # Entropy regularization
         cluster_sizes = s.sum(dim=0) / n
         entropy = -torch.sum(cluster_sizes * torch.log(cluster_sizes + 1e-10))
         collapse_loss = -entropy / np.log(k)
-        
+       
         loss = mod_loss + 0.5 * collapse_loss
         loss.backward()
         optimizer.step()
-    
+   
     model.eval()
     with torch.no_grad():
         s = model(features, edge_index)
@@ -436,17 +438,17 @@ def generate_accuracy_networks(output_dir: str, config: dict, lfr_dir: str, verb
     generator = LFRGenerator(lfr_dir)
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+   
     networks_generated = []
-    
+   
     for mu in config['mu_values']:
         if verbose:
             print(f"\nGenerating networks for μ={mu}...")
-        
+       
         for realization in range(config['realizations']):
-            name = f"mu{mu:.1f}_r{realization}"
+            name = f"mu{mu:.2f}_r{realization}"
             seed = int(mu * 1000) + realization
-            
+           
             try:
                 G, communities = generator.generate_standard(
                     N=config['network_size'],
@@ -459,9 +461,9 @@ def generate_accuracy_networks(output_dir: str, config: dict, lfr_dir: str, verb
                     maxc=NETWORK_PARAMS['base']['maxc'],
                     seed=seed
                 )
-                
+               
                 save_network(G, communities, str(output_path), name)
-                
+               
                 networks_generated.append({
                     'name': name,
                     'mu': mu,
@@ -470,23 +472,23 @@ def generate_accuracy_networks(output_dir: str, config: dict, lfr_dir: str, verb
                     'edges': G.number_of_edges(),
                     'communities': len(communities),
                 })
-                
+               
                 if verbose:
                     print(f"  ✓ {name}: {G.number_of_nodes()} nodes, {len(communities)} communities")
-                    
+                   
             except Exception as e:
                 print(f"  ✗ {name}: Failed - {e}")
-    
+   
     metadata = {
         'benchmark': 'accuracy',
         'config': config,
         'networks': networks_generated,
         'timestamp': datetime.now().isoformat()
     }
-    
+   
     with open(output_path / 'metadata.json', 'w') as f:
         json.dump(metadata, f, indent=2)
-    
+   
     return networks_generated
 
 
@@ -503,7 +505,7 @@ def run_classical_benchmark(
 ):
     """
     Run classical algorithms benchmark.
-    
+   
     Args:
         networks_dir: Directory containing LFR networks
         results_dir: Directory to save results
@@ -514,51 +516,51 @@ def run_classical_benchmark(
     networks_path = Path(networks_dir)
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
-    
+   
     # Create partitions directory
     partitions_path = results_path / 'partitions' / 'classical'
     if save_partitions:
         partitions_path.mkdir(parents=True, exist_ok=True)
-    
+   
     with open(networks_path / 'metadata.json', 'r') as f:
         metadata = json.load(f)
-    
+   
     runner = AlgorithmRunner(verbose=False)
     all_results = []
-    
+   
     for network_info in metadata['networks']:
         name = network_info['name']
         mu = network_info['mu']
-        
+       
         if verbose:
             print(f"\nProcessing {name} (μ={mu})...")
-        
+       
         G, true_communities = load_network(str(networks_path), name)
         num_true_comms = len(true_communities)
         n = G.number_of_nodes()
-        
+       
         # Convert ground truth communities to partition array
         gt = communities_to_partition(true_communities, n)
-        
+       
         for algo_name in algorithms:
             if verbose:
                 print(f"  Running {algo_name}...", end=' ', flush=True)
-            
+           
             result = runner.run_algorithm(G, algo_name)
-            
+           
             if result.success and result.communities:
                 metrics = compute_all_metrics(G, true_communities, result.communities)
-                
+               
                 # Convert detected communities to partition
                 pred = communities_to_partition(result.communities, n)
-                
+               
                 # Save partition
                 if save_partitions:
                     save_partition(
                         partitions_path, name, algo_name,
                         partition=pred, ground_truth=gt
                     )
-                
+               
                 all_results.append({
                     'network': name,
                     'mu': mu,
@@ -571,7 +573,7 @@ def run_classical_benchmark(
                     'num_true': num_true_comms,
                     **metrics
                 })
-                
+               
                 if verbose:
                     print(f"✓ AMI={metrics['ami']:.3f}")
             else:
@@ -587,10 +589,10 @@ def run_classical_benchmark(
                 })
                 if verbose:
                     print(f"✗")
-    
+   
     df = pd.DataFrame(all_results)
     df.to_csv(results_path / 'classical_accuracy_results.csv', index=False)
-    
+   
     # Summary
     summary = df[df['success'] == True].groupby(['mu', 'algorithm']).agg({
         'ami': ['mean', 'std'],
@@ -599,12 +601,12 @@ def run_classical_benchmark(
         'num_detected': 'mean'
     }).round(4)
     summary.to_csv(results_path / 'classical_accuracy_summary.csv')
-    
+   
     if verbose:
         print(f"\nClassical results saved to: {results_path / 'classical_accuracy_results.csv'}")
         if save_partitions:
             print(f"Partitions saved to: {partitions_path}")
-    
+   
     return df
 
 
@@ -618,7 +620,7 @@ class GlobalGNNEncoder(nn.Module):
         super().__init__()
         self.conv1 = GCNConv(in_dim, hidden_dim)
         self.conv2 = GCNConv(hidden_dim, out_dim)
-    
+   
     def forward(self, x, edge_index):
         x = F.relu(self.conv1(x, edge_index))
         return self.conv2(x, edge_index)
@@ -631,10 +633,10 @@ class GlobalGNNEncoder(nn.Module):
 class GCNUnsupervised(nn.Module):
     """
     GCN wrapper for benchmark - Uses actual GCNClusterModel.
-    
+   
     This is the REAL GCN implementation for unsupervised clustering
     using Graph Convolutional Networks with modularity loss.
-    
+   
     Reference: Kipf & Welling (2017) "Semi-Supervised Classification with GCN"
     """
     def __init__(self, in_dim, hidden_dim, max_clusters=50):
@@ -647,12 +649,12 @@ class GCNUnsupervised(nn.Module):
             num_layers=3,
             dropout=0.5
         )
-    
+   
     def forward(self, x, edge_index):
         # GCNClusterModel returns cluster logits
         cluster_logits = self.model(x, edge_index)
         return F.softmax(cluster_logits, dim=-1)
-    
+   
     def get_communities(self, x, edge_index):
         self.eval()
         with torch.no_grad():
@@ -666,7 +668,7 @@ class GCNUnsupervised(nn.Module):
 class DMoNGNN(nn.Module):
     """
     DMoN wrapper for benchmark - Uses actual DMoNModel with DMoNPooling.
-    
+   
     This is the REAL DMoN implementation using PyG's DMoNPooling layer,
     not just a GCN with custom modularity loss.
     """
@@ -679,14 +681,14 @@ class DMoNGNN(nn.Module):
             num_clusters=max_clusters,
             dropout=0.3
         )
-    
+   
     def forward(self, x, edge_index, return_loss=False):
         # DMoNModel returns (cluster_assignments, total_loss)
         cluster_assignments, total_loss = self.model(x, edge_index)
         if return_loss:
             return cluster_assignments, total_loss
         return cluster_assignments
-    
+   
     def get_communities(self, x, edge_index):
         self.eval()
         with torch.no_grad():
@@ -700,7 +702,7 @@ class DMoNGNN(nn.Module):
 class MinCutGNN(nn.Module):
     """
     MinCut wrapper for benchmark - Uses actual MinCutModel with dense_mincut_pool.
-    
+   
     This is the REAL MinCut implementation using PyG's dense_mincut_pool,
     based on Bianchi et al. "Spectral Clustering with Graph Neural Networks".
     """
@@ -713,14 +715,14 @@ class MinCutGNN(nn.Module):
             num_clusters=max_clusters,
             dropout=0.3
         )
-    
+   
     def forward(self, x, edge_index, return_loss=False):
         # MinCutModel returns (s, mincut_loss, ortho_loss)
         s, mincut_loss, ortho_loss = self.model(x, edge_index)
         if return_loss:
             return F.softmax(s, dim=-1), mincut_loss + ortho_loss
         return F.softmax(s, dim=-1)
-    
+   
     def get_communities(self, x, edge_index):
         self.eval()
         with torch.no_grad():
@@ -734,10 +736,10 @@ class MinCutGNN(nn.Module):
 class GATGNN(nn.Module):
     """
     GAT wrapper for benchmark - Uses actual GATClusterModel.
-    
+   
     This is the REAL GAT implementation for unsupervised clustering
     using Graph Attention Networks with modularity loss.
-    
+   
     Reference: Veličković et al. (2018) "Graph Attention Networks"
     """
     def __init__(self, in_dim, hidden_dim, max_clusters=50, heads=4):
@@ -751,12 +753,12 @@ class GATGNN(nn.Module):
             heads=heads,
             dropout=0.3
         )
-    
+   
     def forward(self, x, edge_index):
         # GATClusterModel returns cluster logits
         cluster_logits = self.model(x, edge_index)
         return F.softmax(cluster_logits, dim=-1)
-    
+   
     def get_communities(self, x, edge_index):
         self.eval()
         with torch.no_grad():
@@ -770,10 +772,10 @@ class GATGNN(nn.Module):
 class GraphSAGEGNN(nn.Module):
     """
     GraphSAGE wrapper for benchmark - Uses actual SAGEClusterModel.
-    
+   
     This is the REAL GraphSAGE implementation for unsupervised clustering
     using GraphSAGE convolutions with modularity loss.
-    
+   
     Reference: Hamilton et al. (2017) "Inductive Representation Learning on Large Graphs"
     """
     def __init__(self, in_dim, hidden_dim, max_clusters=50):
@@ -787,12 +789,12 @@ class GraphSAGEGNN(nn.Module):
             dropout=0.3,
             aggr='mean'
         )
-    
+   
     def forward(self, x, edge_index):
         # SAGEClusterModel returns cluster logits
         cluster_logits = self.model(x, edge_index)
         return F.softmax(cluster_logits, dim=-1)
-    
+   
     def get_communities(self, x, edge_index):
         self.eval()
         with torch.no_grad():
@@ -806,11 +808,11 @@ class GraphSAGEGNN(nn.Module):
 class GINGNN(nn.Module):
     """
     GIN wrapper for benchmark - Uses actual GINClusterModel.
-    
-    This is the REAL GIN (Graph Isomorphism Network) implementation for 
+   
+    This is the REAL GIN (Graph Isomorphism Network) implementation for
     unsupervised clustering. GIN is the most expressive GNN architecture,
     equivalent to the Weisfeiler-Lehman graph isomorphism test.
-    
+   
     Reference: Xu et al. (2019) "How Powerful are Graph Neural Networks?"
     """
     def __init__(self, in_dim, hidden_dim, max_clusters=50):
@@ -823,12 +825,12 @@ class GINGNN(nn.Module):
             num_layers=3,
             dropout=0.5
         )
-    
+   
     def forward(self, x, edge_index):
         # GINClusterModel returns cluster logits
         cluster_logits = self.model(x, edge_index)
         return F.softmax(cluster_logits, dim=-1)
-    
+   
     def get_communities(self, x, edge_index):
         self.eval()
         with torch.no_grad():
@@ -842,10 +844,10 @@ class GINGNN(nn.Module):
 class GraphTransformerGNN(nn.Module):
     """
     Graph Transformer wrapper for benchmark - Uses actual GraphTransformerModel.
-    
+   
     This is the REAL Graph Transformer implementation for unsupervised clustering
     using self-attention over graph structure with Laplacian positional encodings.
-    
+   
     Reference: Dwivedi et al. (2021) "A Generalization of Transformer Networks to Graphs"
     """
     def __init__(self, in_dim, hidden_dim, max_clusters=50):
@@ -860,12 +862,12 @@ class GraphTransformerGNN(nn.Module):
             dropout=0.1,
             pos_enc_dim=8
         )
-    
+   
     def forward(self, x, edge_index):
         # GraphTransformerModel returns cluster logits
         cluster_logits = self.model(x, edge_index)
         return F.softmax(cluster_logits, dim=-1)
-    
+   
     def get_communities(self, x, edge_index):
         self.eval()
         with torch.no_grad():
@@ -881,7 +883,7 @@ class GraphTransformerGNN(nn.Module):
 class GCNSemiSupervised(nn.Module):
     """
     GCN wrapper for semi-supervised benchmark - Uses actual GCNSupervisedModel.
-    
+   
     This uses ClusterNet's original GCN supervised implementation with
     configurable layers and proper architecture from Kipf & Welling (2017).
     """
@@ -895,12 +897,12 @@ class GCNSemiSupervised(nn.Module):
             num_layers=num_layers,
             dropout=dropout
         )
-    
+   
     def forward(self, x, edge_index):
         # GCNSupervisedModel returns log_softmax, we return logits for CE loss
         log_probs = self.model(x, edge_index)
         return log_probs  # Already log_softmax, compatible with NLLLoss
-    
+   
     def get_embeddings(self, x, edge_index):
         """Get node embeddings from second-to-last layer."""
         return self.model.get_embeddings(x, edge_index)
@@ -909,7 +911,7 @@ class GCNSemiSupervised(nn.Module):
 class GATSemiSupervised(nn.Module):
     """
     GAT wrapper for semi-supervised benchmark - Uses actual GATSupervisedModel.
-    
+   
     This uses ClusterNet's original GAT supervised implementation with
     multi-head attention from Veličković et al. (2018).
     """
@@ -924,12 +926,12 @@ class GATSemiSupervised(nn.Module):
             heads=heads,
             dropout=dropout
         )
-    
+   
     def forward(self, x, edge_index):
         # GATSupervisedModel returns log_softmax, compatible with NLLLoss
         log_probs = self.model(x, edge_index)
         return log_probs
-    
+   
     def get_embeddings(self, x, edge_index):
         """Get node embeddings from second-to-last layer."""
         return self.model.get_embeddings(x, edge_index)
@@ -942,39 +944,39 @@ class GATSemiSupervised(nn.Module):
 def mincut_loss(s, edge_index, num_nodes):
     """
     Proper MinCutPool loss from paper.
-    
+   
     L = L_cut + L_ortho
-    
+   
     L_cut = -Tr(S^T A S) / Tr(S^T D S)
           = -sum of intra-cluster edges / sum of intra-cluster degrees
           (Minimizing this maximizes normalized association)
-    
+   
     L_ortho = ||S^T S / ||S^T S||_F - I_K / sqrt(K)||_F
             (Encourages orthogonal, balanced clusters)
     """
     row, col = edge_index[0], edge_index[1]
     n = num_nodes
     k = s.size(1)
-    
+   
     # Compute degrees
     deg = torch.zeros(n, device=s.device)
     deg.scatter_add_(0, row, torch.ones(row.size(0), device=s.device))
-    
+   
     # === CUT LOSS ===
     # Tr(S^T A S) = sum over edges of s[i]^T * s[j]
     # This counts (weighted) intra-cluster edges
     numerator = (s[row] * s[col]).sum()
-    
+   
     # Tr(S^T D S) = sum_i d_i * ||s_i||^2 = sum_i d_i * sum_k s_ik^2
     # For soft assignments with softmax, ||s_i||^2 ≈ max(s_i)
     # Simpler: Tr(S^T D S) = d^T (S * S) summed = sum_k (d^T s_k)^2 / cluster_size
-    # Actually: Tr(S^T D S) = sum_i d_i * (s_i^T s_i) 
+    # Actually: Tr(S^T D S) = sum_i d_i * (s_i^T s_i)
     s_squared = (s ** 2).sum(dim=1)  # ||s_i||^2 for each node
     denominator = (deg * s_squared).sum()
-    
+   
     # Normalized cut loss (minimize = maximize association)
     cut_loss = -numerator / (denominator + 1e-10)
-    
+   
     # === ORTHOGONALITY LOSS ===
     # S^T S should be close to (N/K) * I_K for balanced orthogonal clusters
     # L_ortho = ||S^T S / ||S^T S||_F - I_K / sqrt(K)||_F
@@ -982,7 +984,7 @@ def mincut_loss(s, edge_index, num_nodes):
     sts_norm = sts / (torch.norm(sts, p='fro') + 1e-10)
     identity_norm = torch.eye(k, device=s.device) / np.sqrt(k)
     ortho_loss = torch.norm(sts_norm - identity_norm, p='fro')
-    
+   
     return cut_loss + ortho_loss
 
 
@@ -993,12 +995,12 @@ GlobalCommunityGNN = DMoNGNN
 def generate_training_networks(n_networks, n_nodes, mu_min, mu_max, verbose=True):
     """Generate training networks with random μ values."""
     import networkx as nx
-    
+   
     train_nets = []
     for i in range(n_networks):
         mu = np.random.uniform(mu_min, mu_max)
         seed = i + 1000
-        
+       
         try:
             G = nx.LFR_benchmark_graph(
                 n=n_nodes, tau1=2.5, tau2=1.5, mu=mu,
@@ -1007,7 +1009,7 @@ def generate_training_networks(n_networks, n_nodes, mu_min, mu_max, verbose=True
                 max_community=min(100, n_nodes // 3),
                 seed=seed
             )
-            
+           
             gt = np.zeros(n_nodes, dtype=int)
             comm_to_id = {}
             for node in G.nodes():
@@ -1015,16 +1017,16 @@ def generate_training_networks(n_networks, n_nodes, mu_min, mu_max, verbose=True
                 if comm not in comm_to_id:
                     comm_to_id[comm] = len(comm_to_id)
                 gt[node] = comm_to_id[comm]
-            
+           
             for node in G.nodes():
                 del G.nodes[node]['community']
-            
+           
             train_nets.append({'G': G, 'gt': gt, 'k': len(comm_to_id), 'mu': mu})
-            
+           
         except Exception as e:
             if verbose:
                 print(f"  Network {i} failed: {e}")
-    
+   
     return train_nets
 
 
@@ -1032,7 +1034,7 @@ def train_global_encoder(train_nets, feature_type, epochs=100, verbose=True):
     """Train encoder globally via link prediction on multiple networks."""
     encoder = GlobalGNNEncoder(32, 64, 32).to(DEVICE)
     optimizer = torch.optim.Adam(encoder.parameters(), lr=0.01)
-    
+   
     # Precompute features for all networks
     for net in train_nets:
         G = net['G']
@@ -1044,43 +1046,43 @@ def train_global_encoder(train_nets, feature_type, epochs=100, verbose=True):
         elif feature_type == 'spectral':
             net['features'] = spectral_features(G, 32)
         net['edge_index'] = get_edge_index(G)
-    
+   
     encoder.train()
     for epoch in range(epochs):
         np.random.shuffle(train_nets)
         total_loss = 0
-        
+       
         for net in train_nets:
             features = net['features'].to(DEVICE)
             edge_index = net['edge_index'].to(DEVICE)
             n = features.size(0)
-            
+           
             optimizer.zero_grad()
             z = encoder(features, edge_index)
-            
+           
             # Link prediction loss
             num_edges = min(edge_index.size(1), 2000)
             pos = (z[edge_index[0, :num_edges]] * z[edge_index[1, :num_edges]]).sum(1)
             neg_i = torch.randint(0, n, (num_edges,), device=DEVICE)
             neg_j = torch.randint(0, n, (num_edges,), device=DEVICE)
             neg = (z[neg_i] * z[neg_j]).sum(1)
-            
+           
             loss = F.binary_cross_entropy_with_logits(pos, torch.ones_like(pos)) + \
                    F.binary_cross_entropy_with_logits(neg, torch.zeros_like(neg))
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-        
+       
         if verbose and (epoch + 1) % 20 == 0:
             print(f"    Epoch {epoch+1}: Loss = {total_loss/len(train_nets):.4f}")
-    
+   
     return encoder
 
 
 def zero_shot_inference(encoder, G, k, feature_type, custom_features=None):
     """Run zero-shot inference on a network using trained encoder."""
     n = G.number_of_nodes()
-    
+   
     if custom_features is not None:
         features = custom_features
     elif feature_type == 'random':
@@ -1089,15 +1091,15 @@ def zero_shot_inference(encoder, G, k, feature_type, custom_features=None):
         features = structural_features(G, 32)
     elif feature_type == 'spectral':
         features = spectral_features(G, 32)
-    
+   
     edge_index = get_edge_index(G)
-    
+   
     encoder.eval()
     with torch.no_grad():
         features = features.to(DEVICE)
         edge_index = edge_index.to(DEVICE)
         embeddings = encoder(features, edge_index).cpu().numpy()
-    
+   
     # Cluster embeddings with K-Means
     pred = KMeans(n_clusters=k, random_state=42, n_init=10).fit_predict(embeddings)
     return pred
@@ -1111,61 +1113,61 @@ def train_global_encoder_homophily(train_nets, feature_distances, epochs=100, ve
     """Train encoder globally with homophily features (varied feature distances)."""
     encoder = GlobalGNNEncoder(32, 64, 32).to(DEVICE)
     optimizer = torch.optim.Adam(encoder.parameters(), lr=0.01)
-    
+   
     # Precompute features for all networks (sample feature distance randomly)
     for net in train_nets:
         G = net['G']
         gt = net['gt']
         k = net['k']
         n = G.number_of_nodes()
-        
+       
         # Random feature distance for this network
         feat_dist = np.random.choice(feature_distances)
         net['features'] = homophily_features(n, gt, k, feature_distance=feat_dist, seed=np.random.randint(10000))
         net['edge_index'] = get_edge_index(G)
-    
+   
     encoder.train()
     for epoch in range(epochs):
         np.random.shuffle(train_nets)
         total_loss = 0
-        
+       
         for net in train_nets:
             features = net['features'].to(DEVICE)
             edge_index = net['edge_index'].to(DEVICE)
             n = features.size(0)
-            
+           
             optimizer.zero_grad()
             z = encoder(features, edge_index)
-            
+           
             # Link prediction loss
             num_edges = min(edge_index.size(1), 2000)
             pos = (z[edge_index[0, :num_edges]] * z[edge_index[1, :num_edges]]).sum(1)
             neg_i = torch.randint(0, n, (num_edges,), device=DEVICE)
             neg_j = torch.randint(0, n, (num_edges,), device=DEVICE)
             neg = (z[neg_i] * z[neg_j]).sum(1)
-            
+           
             loss = F.binary_cross_entropy_with_logits(pos, torch.ones_like(pos)) + \
                    F.binary_cross_entropy_with_logits(neg, torch.zeros_like(neg))
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-        
+       
         if verbose and (epoch + 1) % 20 == 0:
             print(f"    Epoch {epoch+1}: Loss = {total_loss/len(train_nets):.4f}")
-    
+   
     return encoder
 
 
 def generate_lfr_training_networks_with_homophily(n_networks, n_nodes, mu_min, mu_max, feature_distances, verbose=True):
     """Generate LFR training networks with homophily features."""
     import networkx as nx
-    
+   
     train_nets = []
     for i in range(n_networks):
         mu = np.random.uniform(mu_min, mu_max)
         feat_dist = np.random.choice(feature_distances)
         seed = i + 2000
-        
+       
         try:
             # Generate LFR network
             G = nx.LFR_benchmark_graph(
@@ -1175,7 +1177,7 @@ def generate_lfr_training_networks_with_homophily(n_networks, n_nodes, mu_min, m
                 max_community=min(100, n_nodes // 3),
                 seed=seed
             )
-            
+           
             # Extract ground truth
             gt = np.zeros(n_nodes, dtype=int)
             comm_to_id = {}
@@ -1184,54 +1186,54 @@ def generate_lfr_training_networks_with_homophily(n_networks, n_nodes, mu_min, m
                 if comm not in comm_to_id:
                     comm_to_id[comm] = len(comm_to_id)
                 gt[node] = comm_to_id[comm]
-            
+           
             k = len(comm_to_id)
-            
+           
             # Remove community attribute
             for node in G.nodes():
                 del G.nodes[node]['community']
-            
+           
             # Create homophily features based on ground truth
             features = homophily_features(n_nodes, gt, k, feature_distance=feat_dist, seed=seed)
-            
+           
             train_nets.append({
                 'G': G, 'gt': gt, 'k': k, 'mu': mu,
                 'features': features
             })
-            
+           
         except Exception as e:
             if verbose:
                 print(f"  LFR network {i} failed: {e}")
-    
+   
     return train_nets
 
 
 def train_unsupervised_gnn(model, train_nets, loss_type='modularity', epochs=100, verbose=True):
     """Train a community detection GNN with unsupervised loss (modularity or mincut)."""
     optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-5)
-    
+   
     model.train()
     best_loss = float('inf')
     patience = 0
-    
+   
     # Check if model has built-in loss (DMoNGNN and MinCutGNN now both support return_loss)
     has_builtin_loss = isinstance(model, (DMoNGNN, MinCutGNN))
     print("Has builtin loss:", has_builtin_loss)
     print("Loss type:", loss_type)
-    
+   
     for epoch in range(epochs):
         np.random.shuffle(train_nets)
         total_loss = 0
         total_ami = 0
-        
+       
         for net in train_nets:
             features = net['features'].to(DEVICE)
             edge_index = net['edge_index'].to(DEVICE)
             n = features.size(0)
             gt = net['gt']
-            
+           
             optimizer.zero_grad()
-            
+           
             if has_builtin_loss:
                 #print("Builtin loss")
                 # DMoNGNN and MinCutGNN return (soft_assignments, loss) when return_loss=True
@@ -1244,21 +1246,21 @@ def train_unsupervised_gnn(model, train_nets, loss_type='modularity', epochs=100
                 else:  # mincut (fallback for non-MinCutGNN models)
                     #print("Mincut loss")
                     loss = mincut_loss(s, edge_index, n)
-            
+           
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-            
+           
             with torch.no_grad():
                 pred = s.argmax(dim=1).cpu().numpy()
                 total_ami += adjusted_mutual_info_score(gt, pred)
-        
+       
         avg_loss = total_loss / len(train_nets)
         avg_ami = total_ami / len(train_nets)
-        
+       
         if verbose and (epoch + 1) % 30 == 0:
             print(f"      Epoch {epoch+1}: Loss = {avg_loss:.4f}, Train AMI = {avg_ami:.3f}")
-        
+       
         if avg_loss < best_loss:
             best_loss = avg_loss
             patience = 0
@@ -1268,29 +1270,29 @@ def train_unsupervised_gnn(model, train_nets, loss_type='modularity', epochs=100
                 if verbose:
                     print(f"      Early stopping at epoch {epoch+1}")
                 break
-    
+   
     return model
 
 
 def train_semisupervised_gnn(model, G, gt, features, train_ratio=0.5, epochs=200):
     """
     Train semi-supervised GNN per-network with partial labels.
-    
+   
     Uses NLL loss since ClusterNet's supervised models return log_softmax output.
     """
     n = G.number_of_nodes()
     edge_index = get_edge_index(G).to(DEVICE)
     features = features.to(DEVICE)
     labels = torch.tensor(gt, dtype=torch.long, device=DEVICE)
-    
+   
     # Create train/test split
     n_train = int(n * train_ratio)
     perm = torch.randperm(n)
     train_mask = torch.zeros(n, dtype=torch.bool, device=DEVICE)
     train_mask[perm[:n_train]] = True
-    
+   
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
-    
+   
     model.train()
     for epoch in range(epochs):
         optimizer.zero_grad()
@@ -1299,13 +1301,13 @@ def train_semisupervised_gnn(model, G, gt, features, train_ratio=0.5, epochs=200
         loss = F.nll_loss(out[train_mask], labels[train_mask])
         loss.backward()
         optimizer.step()
-    
+   
     # Predict
     model.eval()
     with torch.no_grad():
         out = model(features, edge_index)
         pred = out.argmax(dim=1).cpu().numpy()
-    
+   
     return pred
 
 
@@ -1319,17 +1321,17 @@ def run_gnn_homophily_benchmark(
 ):
     """
     Run GNN homophily ablation benchmark with 4 GNN architectures.
-    
+   
     UNSUPERVISED (global training, zero-shot testing):
     - DMoN (GCN + modularity loss)
     - MinCut (GCN + mincut loss)
     - GAT (GAT + modularity loss)
     - SAGE (GraphSAGE + modularity loss)
-    
+   
     SEMI-SUPERVISED (per-network training with labels):
     - GCN semi-supervised
     - GAT semi-supervised
-    
+   
     Args:
         networks_dir: Directory containing LFR networks
         feature_distances: List of feature distances to test
@@ -1341,30 +1343,30 @@ def run_gnn_homophily_benchmark(
     if not HAS_TORCH:
         print("PyTorch not available, skipping GNN benchmark")
         return None
-    
+   
     networks_path = Path(networks_dir)
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
-    
+   
     # Create partitions directory
     partitions_path = results_path / 'partitions' / 'gnn_homophily'
     if save_partitions:
         partitions_path.mkdir(parents=True, exist_ok=True)
-    
+   
     with open(networks_path / 'metadata.json', 'r') as f:
         metadata = json.load(f)
-    
+   
     all_results = []
     mu_values = sorted(list(set([net['mu'] for net in metadata['networks']])))
     n_nodes = metadata['networks'][0]['nodes']
-    
+   
     print("\n" + "="*60)
     print("GNN HOMOPHILY BENCHMARK - 7 ARCHITECTURES")
     print(f"Training on {n_train_networks} LFR networks")
     print(f"Testing on SAME networks as classical algorithms")
     print(f"Feature distances: {feature_distances}")
     print("="*60)
-    
+   
     # Generate training networks
     print(f"\nGenerating {n_train_networks} LFR training networks...")
     mu_min, mu_max = min(mu_values), max(mu_values)
@@ -1372,10 +1374,10 @@ def run_gnn_homophily_benchmark(
         n_train_networks, n_nodes, mu_min, mu_max, feature_distances, verbose=False
     )
     print(f"  Generated {len(train_nets)} training networks")
-    
+   
     for net in train_nets:
         net['edge_index'] = get_edge_index(net['G'])
-    
+   
     # =========================================================================
     # UNSUPERVISED GNNs (Global Training)
     # =========================================================================
@@ -1388,7 +1390,7 @@ def run_gnn_homophily_benchmark(
         'GIN_unsup': (GINGNN(32, 64, max_clusters=50), 'modularity'),  # GIN with modularity loss
           # Graph Transformer
     }
-    
+   
     trained_models = {}
     for name, (model, loss_type) in unsupervised_models.items():
         print(f"\n[UNSUPERVISED] Training {name}...")
@@ -1396,36 +1398,36 @@ def run_gnn_homophily_benchmark(
         trained_models[name] = train_unsupervised_gnn(
             model, train_nets, loss_type=loss_type, epochs=100, verbose=verbose
         )
-    
+   
     # =========================================================================
     # TEST ON SAME NETWORKS AS CLASSICAL
     # =========================================================================
     print("\n" + "-"*60)
     print("TESTING ON SAME NETWORKS AS CLASSICAL")
     print("-"*60)
-    
+   
     for network_info in metadata['networks']:
         name = network_info['name']
         mu = network_info['mu']
-        
+       
         if verbose:
             print(f"\nNetwork: {name} (μ={mu})")
-        
+       
         G, true_communities = load_network(str(networks_path), name)
         n = G.number_of_nodes()
         k = len(true_communities)
-        
+       
         gt = np.zeros(n, dtype=int)
         for i, comm in enumerate(true_communities):
             for node in comm:
                 gt[node] = i
-        
+       
         edge_index = get_edge_index(G).to(DEVICE)
-        
+       
         for feat_dist in feature_distances:
             features = homophily_features(n, gt, k, feature_distance=feat_dist, seed=network_info['realization'])
             features_gpu = features.to(DEVICE)
-            
+           
             # -----------------------------------------------------------------
             # UNSUPERVISED GNNs (zero-shot inference)
             # -----------------------------------------------------------------
@@ -1437,7 +1439,7 @@ def run_gnn_homophily_benchmark(
                     runtime = time.time() - start_time
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
-                    
+                   
                     # Save partition
                     if save_partitions:
                         save_partition(
@@ -1445,7 +1447,7 @@ def run_gnn_homophily_benchmark(
                             partition=np.array(pred), ground_truth=gt,
                             extra_info={'fd': feat_dist}
                         )
-                    
+                   
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1461,10 +1463,10 @@ def run_gnn_homophily_benchmark(
                         'num_detected': len(set(pred)),
                         'num_true': k
                     })
-                    
+                   
                     if verbose:
                         print(f"  {model_name} (fd={feat_dist}): AMI={ami:.3f}")
-                        
+                       
                 except Exception as e:
                     all_results.append({
                         'network': name,
@@ -1477,11 +1479,11 @@ def run_gnn_homophily_benchmark(
                         'success': False,
                         'error': str(e)
                     })
-            
+           
             # -----------------------------------------------------------------
             # SEMI-SUPERVISED GNNs (per-network training)
             # -----------------------------------------------------------------
-            for ss_name, ss_class in [('GCN_semisup', GCNSemiSupervised), 
+            for ss_name, ss_class in [('GCN_semisup', GCNSemiSupervised),
                                        ('GAT_semisup', GATSemiSupervised)]:
                 start_time = time.time()
                 try:
@@ -1490,7 +1492,7 @@ def run_gnn_homophily_benchmark(
                     runtime = time.time() - start_time
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
-                    
+                   
                     # Save partition
                     if save_partitions:
                         save_partition(
@@ -1498,7 +1500,7 @@ def run_gnn_homophily_benchmark(
                             partition=np.array(pred), ground_truth=gt,
                             extra_info={'fd': feat_dist}
                         )
-                    
+                   
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1514,10 +1516,10 @@ def run_gnn_homophily_benchmark(
                         'num_detected': len(set(pred)),
                         'num_true': k
                     })
-                    
+                   
                     if verbose:
                         print(f"  {ss_name} (fd={feat_dist}): AMI={ami:.3f}")
-                        
+                       
                 except Exception as e:
                     all_results.append({
                         'network': name,
@@ -1530,7 +1532,7 @@ def run_gnn_homophily_benchmark(
                         'success': False,
                         'error': str(e)
                     })
-            
+           
             # -----------------------------------------------------------------
             # K-Means baseline
             # -----------------------------------------------------------------
@@ -1538,7 +1540,7 @@ def run_gnn_homophily_benchmark(
             pred_km = KMeans(n_clusters=k, random_state=42, n_init=10).fit_predict(features.numpy())
             ami_km = adjusted_mutual_info_score(gt, pred_km)
             nmi_km = normalized_mutual_info_score(gt, pred_km)
-            
+           
             # Save partition
             if save_partitions:
                 save_partition(
@@ -1546,7 +1548,7 @@ def run_gnn_homophily_benchmark(
                     partition=pred_km, ground_truth=gt,
                     extra_info={'fd': feat_dist}
                 )
-            
+           
             all_results.append({
                 'network': name,
                 'mu': mu,
@@ -1562,13 +1564,13 @@ def run_gnn_homophily_benchmark(
                 'num_detected': len(set(pred_km)),
                 'num_true': k
             })
-            
+           
             if verbose:
                 print(f"  KMeans (fd={feat_dist}): AMI={ami_km:.3f}")
-    
+   
     df = pd.DataFrame(all_results)
     df.to_csv(results_path / 'gnn_homophily_results.csv', index=False)
-    
+   
     df_success = df[df['success'] == True]
     summary = df_success.groupby(['mu', 'feature_distance', 'algorithm']).agg({
         'ami': ['mean', 'std'],
@@ -1576,12 +1578,12 @@ def run_gnn_homophily_benchmark(
         'runtime': ['mean', 'std']
     }).round(4)
     summary.to_csv(results_path / 'gnn_homophily_summary.csv')
-    
+   
     if verbose:
         print(f"\nHomophily results saved to: {results_path / 'gnn_homophily_results.csv'}")
         if save_partitions:
             print(f"Partitions saved to: {partitions_path}")
-    
+   
     return df
 
 
@@ -1594,13 +1596,13 @@ def run_gnn_features_benchmark(
 ):
     """
     Run GNN node features benchmark with 4 GNN architectures.
-    
+   
     Feature types: random, structural, spectral
     GNNs: DMoN, MinCut, GAT, SAGE (all unsupervised with modularity/mincut loss)
-    
+   
     1. Train globally on LFR networks (separate model per feature type per GNN)
     2. Test on SAME LFR networks as classical algorithms (zero-shot)
-    
+   
     Args:
         networks_dir: Directory containing LFR networks
         results_dir: Directory to save results
@@ -1611,22 +1613,22 @@ def run_gnn_features_benchmark(
     if not HAS_TORCH:
         print("PyTorch not available, skipping GNN benchmark")
         return None
-    
+   
     networks_path = Path(networks_dir)
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
-    
+   
     # Create partitions directory
     partitions_path = results_path / 'partitions' / 'gnn_features'
     if save_partitions:
         partitions_path.mkdir(parents=True, exist_ok=True)
-    
+   
     with open(networks_path / 'metadata.json', 'r') as f:
         metadata = json.load(f)
-    
+   
     all_results = []
     feature_types = ['random', 'structural', 'spectral']
-    
+   
     # GNN architectures to test (UNSUPERVISED - global training)
     gnn_configs = {
         'GCN_unsup': (GCNUnsupervised, 'modularity'),  # GCN with modularity loss
@@ -1637,7 +1639,7 @@ def run_gnn_features_benchmark(
         'GIN_unsup': (GINGNN, 'modularity'),  # GIN with modularity loss
       # Graph Transformer
     }
-    
+   
     print("\n" + "="*60)
     print("GNN NODE FEATURES BENCHMARK - 7 ARCHITECTURES")
     print(f"Training on {n_train_networks} networks")
@@ -1645,29 +1647,29 @@ def run_gnn_features_benchmark(
     print(f"Feature types: {feature_types}")
     print(f"GNN architectures: {list(gnn_configs.keys())}")
     print("="*60)
-    
+   
     # Get mu range from test networks
     mu_values = list(set([net['mu'] for net in metadata['networks']]))
     mu_min, mu_max = min(mu_values), max(mu_values)
     n_nodes = metadata['networks'][0]['nodes']
-    
+   
     # Generate training networks
     print(f"\nGenerating {n_train_networks} training networks...")
     train_nets = generate_training_networks(n_train_networks, n_nodes, mu_min, mu_max, verbose=False)
     print(f"  Generated {len(train_nets)} training networks")
-    
+   
     # Precompute edge indices
     for net in train_nets:
         net['edge_index'] = get_edge_index(net['G'])
-    
+   
     # Train models for each (feature_type, gnn_architecture) combination
     trained_models = {}
-    
+   
     for feat_type in feature_types:
         print(f"\n{'='*40}")
         print(f"FEATURE TYPE: {feat_type.upper()}")
         print(f"{'='*40}")
-        
+       
         # Compute features for training networks
         for net in train_nets:
             G = net['G']
@@ -1678,7 +1680,7 @@ def run_gnn_features_benchmark(
                 net['features'] = structural_features(G, 32)
             elif feat_type == 'spectral':
                 net['features'] = spectral_features(G, 32)
-        
+       
         # Train each GNN architecture
         for gnn_name, (gnn_class, loss_type) in gnn_configs.items():
             print(f"\n  Training {gnn_name} ({loss_type} loss)...")
@@ -1688,32 +1690,32 @@ def run_gnn_features_benchmark(
             )
             trained_models[(feat_type, gnn_name)] = trained_model
             print(f"    ✓ {gnn_name} trained")
-    
+   
     # =========================================================================
     # TEST ON SAME NETWORKS AS CLASSICAL
     # =========================================================================
     print("\n" + "="*60)
     print("TESTING ON SAME NETWORKS AS CLASSICAL")
     print("="*60)
-    
+   
     for network_info in metadata['networks']:
         name = network_info['name']
         mu = network_info['mu']
-        
+       
         if verbose:
             print(f"\nNetwork: {name} (μ={mu})")
-        
+       
         G, true_communities = load_network(str(networks_path), name)
         n = G.number_of_nodes()
         k = len(true_communities)
-        
+       
         gt = np.zeros(n, dtype=int)
         for i, comm in enumerate(true_communities):
             for node in comm:
                 gt[node] = i
-        
+       
         edge_index = get_edge_index(G).to(DEVICE)
-        
+       
         for feat_type in feature_types:
             # Generate features for test network
             if feat_type == 'random':
@@ -1722,13 +1724,13 @@ def run_gnn_features_benchmark(
                 features = structural_features(G, 32)
             elif feat_type == 'spectral':
                 features = spectral_features(G, 32)
-            
+           
             features_gpu = features.to(DEVICE)
-            
+           
             # Test each GNN architecture
             for gnn_name in gnn_configs.keys():
                 model = trained_models[(feat_type, gnn_name)]
-                
+               
                 start_time = time.time()
                 try:
                     model.eval()
@@ -1736,7 +1738,7 @@ def run_gnn_features_benchmark(
                     runtime = time.time() - start_time
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
-                    
+                   
                     # Save partition
                     if save_partitions:
                         save_partition(
@@ -1744,7 +1746,7 @@ def run_gnn_features_benchmark(
                             partition=np.array(pred), ground_truth=gt,
                             extra_info={'ft': feat_type}
                         )
-                    
+                   
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1760,10 +1762,10 @@ def run_gnn_features_benchmark(
                         'num_detected': len(set(pred)),
                         'num_true': k
                     })
-                    
+                   
                     if verbose:
                         print(f"  {gnn_name} ({feat_type}): AMI={ami:.3f}")
-                        
+                       
                 except Exception as e:
                     all_results.append({
                         'network': name,
@@ -1778,9 +1780,9 @@ def run_gnn_features_benchmark(
                     })
                     if verbose:
                         print(f"  {gnn_name} ({feat_type}): FAILED - {e}")
-            
+           
             # SEMI-SUPERVISED GNNs (per-network training with 50% labels)
-            for ss_name, ss_class in [('GCN_semisup', GCNSemiSupervised), 
+            for ss_name, ss_class in [('GCN_semisup', GCNSemiSupervised),
                                        ('GAT_semisup', GATSemiSupervised)]:
                 start_time = time.time()
                 try:
@@ -1789,7 +1791,7 @@ def run_gnn_features_benchmark(
                     runtime = time.time() - start_time
                     ami = adjusted_mutual_info_score(gt, pred)
                     nmi = normalized_mutual_info_score(gt, pred)
-                    
+                   
                     # Save partition
                     if save_partitions:
                         save_partition(
@@ -1797,7 +1799,7 @@ def run_gnn_features_benchmark(
                             partition=np.array(pred), ground_truth=gt,
                             extra_info={'ft': feat_type}
                         )
-                    
+                   
                     all_results.append({
                         'network': name,
                         'mu': mu,
@@ -1813,10 +1815,10 @@ def run_gnn_features_benchmark(
                         'num_detected': len(set(pred)),
                         'num_true': k
                     })
-                    
+                   
                     if verbose:
                         print(f"  {ss_name} ({feat_type}): AMI={ami:.3f}")
-                        
+                       
                 except Exception as e:
                     all_results.append({
                         'network': name,
@@ -1831,13 +1833,13 @@ def run_gnn_features_benchmark(
                     })
                     if verbose:
                         print(f"  {ss_name} ({feat_type}): FAILED - {e}")
-            
+           
             # K-Means baseline on raw features
             start_time = time.time()
             pred_km = KMeans(n_clusters=k, random_state=42, n_init=10).fit_predict(features.numpy())
             ami_km = adjusted_mutual_info_score(gt, pred_km)
             nmi_km = normalized_mutual_info_score(gt, pred_km)
-            
+           
             # Save partition
             if save_partitions:
                 save_partition(
@@ -1845,7 +1847,7 @@ def run_gnn_features_benchmark(
                     partition=pred_km, ground_truth=gt,
                     extra_info={'ft': feat_type}
                 )
-            
+           
             all_results.append({
                 'network': name,
                 'mu': mu,
@@ -1861,13 +1863,13 @@ def run_gnn_features_benchmark(
                 'num_detected': len(set(pred_km)),
                 'num_true': k
             })
-            
+           
             if verbose:
                 print(f"  KMeans ({feat_type}): AMI={ami_km:.3f}")
-    
+   
     df = pd.DataFrame(all_results)
     df.to_csv(results_path / 'gnn_features_results.csv', index=False)
-    
+   
     df_success = df[df['success'] == True]
     summary = df_success.groupby(['mu', 'feature_type', 'algorithm']).agg({
         'ami': ['mean', 'std'],
@@ -1875,12 +1877,12 @@ def run_gnn_features_benchmark(
         'runtime': ['mean', 'std']
     }).round(4)
     summary.to_csv(results_path / 'gnn_features_summary.csv')
-    
+   
     if verbose:
         print(f"\nFeatures results saved to: {results_path / 'gnn_features_results.csv'}")
         if save_partitions:
             print(f"Partitions saved to: {partitions_path}")
-    
+   
     return df
 
 
@@ -1896,22 +1898,22 @@ def plot_accuracy_results(results_dir: str):
     except ImportError:
         print("Matplotlib/Seaborn not available for plotting")
         return
-    
+   
     results_path = Path(results_dir)
-    
+   
     # Plot classical results
     classical_file = results_path / 'classical_accuracy_results.csv'
     if classical_file.exists():
         df = pd.read_csv(classical_file)
         df_success = df[df['success'] == True]
-        
+       
         plt.figure(figsize=(12, 8))
         for algo in df_success['algorithm'].unique():
             algo_data = df_success[df_success['algorithm'] == algo]
             summary = algo_data.groupby('mu')['ami'].agg(['mean', 'std']).reset_index()
             plt.errorbar(summary['mu'], summary['mean'], yerr=summary['std'],
                         marker='o', label=algo, capsize=3)
-        
+       
         plt.xlabel('Mixing Parameter (μ)', fontsize=12)
         plt.ylabel('Adjusted Mutual Information (AMI)', fontsize=12)
         plt.title('Classical Algorithms: AMI vs Mixing Parameter', fontsize=14)
@@ -1920,23 +1922,23 @@ def plot_accuracy_results(results_dir: str):
         plt.tight_layout()
         plt.savefig(results_path / 'classical_ami_vs_mu.png', dpi=150)
         plt.close()
-    
+   
     # Plot GNN features results
     features_file = results_path / 'gnn_features_results.csv'
     if features_file.exists():
         df = pd.read_csv(features_file)
         df_success = df[df['success'] == True]
-        
+       
         for feat_type in df_success['feature_type'].unique():
             plt.figure(figsize=(10, 6))
             feat_data = df_success[df_success['feature_type'] == feat_type]
-            
+           
             for algo in feat_data['algorithm'].unique():
                 algo_data = feat_data[feat_data['algorithm'] == algo]
                 summary = algo_data.groupby('mu')['ami'].agg(['mean', 'std']).reset_index()
                 plt.errorbar(summary['mu'], summary['mean'], yerr=summary['std'],
                             marker='o', label=algo, capsize=3)
-            
+           
             plt.xlabel('Mixing Parameter (μ)', fontsize=12)
             plt.ylabel('AMI', fontsize=12)
             plt.title(f'GNN with {feat_type.capitalize()} Features', fontsize=14)
@@ -1945,20 +1947,20 @@ def plot_accuracy_results(results_dir: str):
             plt.tight_layout()
             plt.savefig(results_path / f'gnn_{feat_type}_ami_vs_mu.png', dpi=150)
             plt.close()
-    
+   
     # Plot homophily results
     homophily_file = results_path / 'gnn_homophily_results.csv'
     if homophily_file.exists():
         df = pd.read_csv(homophily_file)
         df_success = df[df['success'] == True]
-        
+       
         # Heatmap for each algorithm
         for algo in df_success['algorithm'].unique():
             algo_data = df_success[df_success['algorithm'] == algo]
             pivot = algo_data.pivot_table(
                 values='ami', index='feature_distance', columns='mu', aggfunc='mean'
             )
-            
+           
             plt.figure(figsize=(8, 6))
             sns.heatmap(pivot, annot=True, fmt='.2f', cmap='RdYlGn', vmin=0, vmax=1)
             plt.title(f'{algo.upper()}: AMI by Feature Distance and μ')
@@ -1967,60 +1969,249 @@ def plot_accuracy_results(results_dir: str):
             plt.tight_layout()
             plt.savefig(results_path / f'gnn_{algo}_homophily_heatmap.png', dpi=150)
             plt.close()
-    
+   
     print(f"Plots saved to {results_path}")
 
 
 # =============================================================================
 # MAIN
 # =============================================================================
+# GNN BENCHMARK (using published SOTA models from clusternet.gnn)
+# =============================================================================
+
+def run_gnn_benchmark(
+    networks_dir: str,
+    results_dir: str,
+    gnn_algorithms: list,
+    supervised_algorithms: list = None,
+    verbose: bool = True,
+    save_partitions: bool = True,
+    resume: bool = False,
+    epochs: int = 200,
+    metadata_file: str = 'metadata.json',
+):
+    """
+    Run GNN algorithms benchmark on the same LFR networks as classical.
+
+    Unsupervised GNNs and baselines receive num_clusters from ground truth.
+    Semi-supervised GNNs additionally receive 20% of node labels.
+
+    Args:
+        networks_dir: Directory containing LFR networks (with metadata.json)
+        results_dir: Directory to save results
+        gnn_algorithms: List of unsupervised GNN + baseline algorithm names
+        supervised_algorithms: List of semi-supervised algorithm names
+        verbose: Print progress
+        save_partitions: Save partition JSONs for resume
+        resume: Skip already-completed (network, algorithm) pairs
+        epochs: Training epochs for GNN methods
+        metadata_file: Name of metadata JSON file in networks_dir
+    """
+    networks_path = Path(networks_dir)
+    results_path = Path(results_dir)
+    results_path.mkdir(parents=True, exist_ok=True)
+
+    partitions_path = results_path / 'partitions' / 'gnn'
+    if save_partitions:
+        partitions_path.mkdir(parents=True, exist_ok=True)
+
+    csv_path = results_path / 'gnn_accuracy_results.csv'
+
+    with open(networks_path / metadata_file, 'r') as f:
+        metadata = json.load(f)
+
+    existing_pairs = set()
+    if resume and csv_path.is_file():
+        try:
+            df_existing = pd.read_csv(csv_path)
+            for _, row in df_existing[df_existing['success'] == True].iterrows():
+                existing_pairs.add((row['network'], row['algorithm']))
+        except Exception:
+            pass
+
+    runner = AlgorithmRunner(verbose=False)
+    all_results = []
+    supervised_algorithms = supervised_algorithms or []
+
+    for network_info in metadata['networks']:
+        name = network_info['name']
+        mu = network_info['mu']
+        realization = network_info['realization']
+
+        if verbose:
+            print(f"\nProcessing {name} (μ={mu})...")
+
+        G, true_communities = load_network(str(networks_path), name)
+        num_true_comms = len(true_communities)
+        n = G.number_of_nodes()
+        gt = communities_to_partition(true_communities, n)
+
+        labels = gt.copy()
+        rng_base = int(mu * 1000) + realization
+
+        all_algos = list(gnn_algorithms) + list(supervised_algorithms)
+
+        for algo_name in all_algos:
+            if resume and (name, algo_name) in existing_pairs:
+                if verbose:
+                    print(f"  {algo_name}... (skipped, cached) ✓")
+                continue
+
+            if resume:
+                part_file = partitions_path / f"{name}_{algo_name}.json"
+                if part_file.is_file():
+                    try:
+                        with open(part_file, 'r') as pf:
+                            pdata = json.load(pf)
+                        pred_comms = pdata['communities']
+                        pred_comms = [[int(x) for x in c] for c in pred_comms]
+                        metrics = compute_all_metrics(G, true_communities, pred_comms)
+                        algo_type = 'gnn_supervised' if algo_name in supervised_algorithms else 'gnn_unsupervised'
+                        all_results.append({
+                            'network': name, 'mu': mu, 'realization': realization,
+                            'algorithm': algo_name, 'algorithm_type': algo_type,
+                            'success': True, 'runtime': float('nan'),
+                            'num_detected': len(pred_comms), 'num_true': num_true_comms,
+                            **metrics
+                        })
+                        if verbose:
+                            print(f"  {algo_name}... (resumed from partition) ✓ AMI={metrics['ami']:.3f}")
+                        continue
+                    except Exception:
+                        pass
+
+            if verbose:
+                print(f"  Running {algo_name}...", end=' ', flush=True)
+
+            kwargs = {'num_clusters': num_true_comms, 'epochs': epochs}
+            if algo_name in supervised_algorithms:
+                m = re.search(r'_(\d+)$', algo_name)
+                frac = int(m.group(1)) / 100.0 if m else 0.2
+                rng = np.random.RandomState(rng_base)
+                train_mask = np.zeros(n, dtype=bool)
+                train_mask[rng.choice(n, size=max(1, int(frac * n)), replace=False)] = True
+                kwargs['labels'] = labels
+                kwargs['train_mask'] = train_mask
+
+            result = runner.run_algorithm(G, algo_name, **kwargs)
+
+            if result.success and result.communities:
+                metrics = compute_all_metrics(G, true_communities, result.communities)
+                pred = communities_to_partition(result.communities, n)
+
+                if save_partitions:
+                    save_partition(partitions_path, name, algo_name,
+                                  partition=pred, ground_truth=gt)
+
+                algo_type = 'gnn_supervised' if algo_name in supervised_algorithms else 'gnn_unsupervised'
+                all_results.append({
+                    'network': name, 'mu': mu, 'realization': realization,
+                    'algorithm': algo_name, 'algorithm_type': algo_type,
+                    'success': True, 'runtime': result.runtime,
+                    'num_detected': len(result.communities),
+                    'num_true': num_true_comms,
+                    **metrics
+                })
+                if verbose:
+                    print(f"✓ AMI={metrics['ami']:.3f} ({result.runtime:.1f}s)")
+            else:
+                all_results.append({
+                    'network': name, 'mu': mu, 'realization': realization,
+                    'algorithm': algo_name,
+                    'algorithm_type': 'gnn_unsupervised',
+                    'success': False, 'runtime': result.runtime,
+                    'error': result.error_message
+                })
+                if verbose:
+                    print(f"✗ {result.error_message[:60]}")
+
+    if resume and csv_path.is_file():
+        try:
+            df_old = pd.read_csv(csv_path)
+            all_results = pd.concat([df_old, pd.DataFrame(all_results)],
+                                    ignore_index=True).drop_duplicates(
+                                        subset=['network', 'algorithm'], keep='last')
+            all_results = all_results.to_dict('records')
+        except Exception:
+            pass
+
+    df = pd.DataFrame(all_results)
+    df.to_csv(csv_path, index=False)
+
+    if len(df) > 0 and 'ami' in df.columns:
+        success_df = df[df['success'] == True]
+        if len(success_df) > 0:
+            summary = success_df.groupby(['mu', 'algorithm']).agg({
+                'ami': ['mean', 'std'],
+                'nmi': ['mean', 'std'],
+                'runtime': ['mean', 'std'],
+                'num_detected': 'mean'
+            }).round(4)
+            summary.to_csv(results_path / 'gnn_accuracy_summary.csv')
+
+    if verbose:
+        print(f"\nGNN results saved to: {csv_path}")
+
+    return df
+
+
+# =============================================================================
 
 def main():
     parser = argparse.ArgumentParser(description='LFR Accuracy Benchmark')
     parser.add_argument('--generate', action='store_true', help='Generate networks')
     parser.add_argument('--run-classical', action='store_true', help='Run classical algorithms')
+    parser.add_argument('--run-gnn', action='store_true', help='Run GNN algorithms benchmark')
     parser.add_argument('--run-gnn-homophily', action='store_true', help='Run GNN homophily ablation (zero-shot)')
     parser.add_argument('--run-gnn-features', action='store_true', help='Run GNN node features benchmark (zero-shot)')
     parser.add_argument('--plot', action='store_true', help='Generate plots')
     parser.add_argument('--all', action='store_true', help='Run everything')
+    parser.add_argument('--resume', action='store_true', help='Resume from previous run (skip completed pairs)')
     parser.add_argument('--output', type=str, default=None, help='Output directory')
     parser.add_argument('--mu-values', type=str, default=None,
                         help='Comma-separated μ values (e.g., "0.1,0.3,0.5")')
     parser.add_argument('--realizations', type=int, default=None,
                         help='Number of realizations per μ')
+    parser.add_argument('--epochs', type=int, default=200,
+                        help='Training epochs for GNN methods (default: 200)')
+    parser.add_argument('--metadata', type=str, default='metadata.json',
+                        help='Metadata JSON filename inside networks dir (default: metadata.json)')
     parser.add_argument('--feature-distances', type=str, default='0.2,0.4,0.6,0.8,1.2',
                         help='Comma-separated feature distances for homophily test')
     parser.add_argument('--train-networks', type=int, default=100,
                         help='Number of training networks for global GNN training')
-    
+   
     args = parser.parse_args()
-    
+
+    if args.mu_values is None:
+        #args.mu_values = [0.1,0.12,0.14,0.16,0.18,0.2,0.22,0.24,0.26,0.28,0.3,0.32,0.34,0.36,0.38,0.4,0.42,0.44,0.46,0.48,0.5,0.52,0.54,0.56,0.58,0.6,0.62,0.64,0.66,0.68,0.7,0.72,0.74,0.76,0.78,0.8]
+        args.mu_values=[0.72,0.74,0.76,0.78,0.8]
     # Setup paths
     script_dir = Path(__file__).parent
     lfr_dir = script_dir.parent.parent.parent.parent / 'LFRbenchmarks'
-    
+   
     if args.output:
         output_dir = Path(args.output)
     else:
         output_dir = script_dir / 'accuracy'
-    
+   
     networks_dir = output_dir / 'networks'
     results_dir = output_dir / 'results'
-    
+   
     # Update config
     config = ACCURACY_CONFIG.copy()
     if args.mu_values:
-        config['mu_values'] = [float(x) for x in args.mu_values.split(',')]
+        config['mu_values'] = [float(x) for x in args.mu_values.split(',')] if isinstance(args.mu_values, str) else args.mu_values
     if args.realizations:
         config['realizations'] = args.realizations
-    
+   
     feature_distances = [float(x) for x in args.feature_distances.split(',')]
-    
+   
     # Get algorithms
     algorithms = []
     for category in ACTIVE_CATEGORIES:
         algorithms.extend(ALGORITHMS.get(category, []))
-    
+   
     # Generate networks
     if args.all or args.generate:
         print("="*60)
@@ -2028,21 +2219,49 @@ def main():
         print("="*60)
         print(f"μ values: {config['mu_values']}")
         print(f"Realizations: {config['realizations']}")
-        
+       
         generate_accuracy_networks(
             str(networks_dir), config, str(lfr_dir), verbose=True
         )
-    
+   
     # Run classical benchmark
     if args.all or args.run_classical:
         print("\n" + "="*60)
         print("RUNNING CLASSICAL ALGORITHMS BENCHMARK")
         print("="*60)
-        
+       
         run_classical_benchmark(
             str(networks_dir), str(results_dir), algorithms, verbose=True
         )
-    
+   
+    # Run GNN benchmark (SOTA transductive methods)
+    if args.all or args.run_gnn:
+        print("\n" + "="*60)
+        print("RUNNING GNN ALGORITHMS BENCHMARK")
+        print("="*60)
+
+        gnn_algorithms = []
+        for cat in GNN_CATEGORIES:
+            gnn_algorithms.extend(ALGORITHMS.get(cat, []))
+
+        supervised_algorithms = []
+        for cat in GNN_SUPERVISED_CATEGORIES:
+            supervised_algorithms.extend(ALGORITHMS.get(cat, []))
+
+        print(f"Unsupervised + baselines: {gnn_algorithms}")
+        print(f"Semi-supervised: {supervised_algorithms}")
+
+        run_gnn_benchmark(
+            networks_dir=str(networks_dir),
+            results_dir=str(results_dir),
+            gnn_algorithms=gnn_algorithms,
+            supervised_algorithms=supervised_algorithms,
+            verbose=True,
+            resume=args.resume,
+            epochs=args.epochs,
+            metadata_file=args.metadata,
+        )
+
     # Run GNN homophily benchmark (zero-shot on same networks as classical)
     if args.all or args.run_gnn_homophily:
         print("\n" + "="*60)
@@ -2050,7 +2269,7 @@ def main():
         print("="*60)
         print(f"Training on {args.train_networks} networks")
         print(f"Testing on SAME networks as classical algorithms")
-        
+       
         run_gnn_homophily_benchmark(
             networks_dir=str(networks_dir),
             feature_distances=feature_distances,
@@ -2058,28 +2277,28 @@ def main():
             n_train_networks=args.train_networks,
             verbose=True
         )
-    
+   
     # Run GNN features benchmark (zero-shot on same networks as classical)
     if args.all or args.run_gnn_features:
         print("\n" + "="*60)
         print("RUNNING GNN NODE FEATURES BENCHMARK (ZERO-SHOT)")
         print("="*60)
         print(f"Training on {args.train_networks} networks, testing on same LFR networks as classical")
-        
+       
         run_gnn_features_benchmark(
-            str(networks_dir), str(results_dir), 
+            str(networks_dir), str(results_dir),
             n_train_networks=args.train_networks,
             verbose=True
         )
-    
+   
     # Generate plots
     if args.all or args.plot:
         print("\n" + "="*60)
         print("GENERATING PLOTS")
         print("="*60)
-        
+       
         plot_accuracy_results(str(results_dir))
-    
+   
     print("\n" + "="*60)
     print("BENCHMARK COMPLETE")
     print("="*60)
@@ -2087,3 +2306,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

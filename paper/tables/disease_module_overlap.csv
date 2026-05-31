@@ -1,0 +1,33 @@
+algorithm,type,n_communities,diseases_tested,diseases_recovered,recovery_rate,top_diseases
+agdl,Classical,7,76,19,0.25333333333333335,Myasthenic syndrome; Cardiomyopathy; Blood group; Myopathy; Ceroid lipofuscinosis; Osteogenesis imperfecta; Muscular dystrophy-dystroglycanopathy (congenital with brain and eye anomalies); Leukemia; Congenital disorder of glycosylation; Macular degeneration
+angel,Classical,1,76,0,0.0,
+async_fluid,Classical,89,76,71,0.9466666666666667,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+bigs2,Classical,388,76,75,1.0,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+cpm,Classical,1095,76,75,1.0,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+csbio_iitm2,Classical,501,76,75,1.0,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+demon,Classical,49,76,39,0.52,Melanoma; Spinocerebellar ataxia; Cardiomyopathy; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease; Rheumatoid arthritis; Colorectal cancer; Myopathy; Muscular dystrophy
+dgi_gnn,GNN,9,76,25,0.3333333333333333,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Blood group; Charcot-Marie-Tooth disease; Corneal dystrophy; Atrial fibrillation; Colorectal cancer; Myopathy
+dmon_gnn,GNN,9,76,41,0.5466666666666666,Melanoma; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Schizophrenia; Atrial fibrillation; Myopathy; Obesity; Ceroid lipofuscinosis
+fastgreedy,Classical,9,76,16,0.21333333333333335,Myasthenic syndrome; Blood group; Obesity; Ceroid lipofuscinosis; Osteogenesis imperfecta; Mental retardation; Muscular dystrophy-dystroglycanopathy (congenital with brain and eye anomalies); Breast cancer; Leukemia; Congenital disorder of glycosylation
+gat_supervised,GNN,8,76,4,0.05333333333333334,Epiphyseal dysplasia; Myocardial infarction; Epidermolysis bullosa; Osteopetrosis
+gcn_supervised,GNN,8,76,5,0.06666666666666667,?Charcot-Marie-Tooth disease; Muscular dystrophy; Epiphyseal dysplasia; Mental retardation; Mitochondrial complex I deficiency
+infomap,Classical,9,76,0,0.0,
+label_propagation,Classical,1,76,0,0.0,
+leading_eigen,Classical,2,76,1,0.013333333333333334,Blood group
+leiden,Classical,7,76,19,0.25333333333333335,Myasthenic syndrome; Epilepsy; Blood group; Deafness; Atrial fibrillation; Hypercholesterolemia; Osteogenesis imperfecta; Epileptic encephalopathy; Muscular dystrophy-dystroglycanopathy (congenital with brain and eye anomalies); Congenital disorder of glycosylation
+louvain,Classical,7,76,31,0.41333333333333333,Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Spinal muscular atrophy; Charcot-Marie-Tooth disease; Colorectal cancer; Hypercholesterolemia; Muscular dystrophy; Ceroid lipofuscinosis
+mincut_gnn,GNN,9,76,55,0.7333333333333333,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; Corneal dystrophy
+mlp_kmeans,GNN,6,76,7,0.09333333333333334,Myasthenic syndrome; Epilepsy; Blood group; Hypercholesterolemia; Macular degeneration; Hemolytic uremic syndrome; Ciliary dyskinesia
+nested_sbm,Classical,232,76,75,1.0,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+nested_sbm_coarse,Classical,5,76,11,0.14666666666666667,Melanoma; Cardiomyopathy; Hypertension; Myopathy; Osteogenesis imperfecta; Congenital disorder of glycosylation; Macular degeneration; Mitochondrial complex I deficiency; Epidermolysis bullosa; Hemolytic uremic syndrome
+node2vec_gnn,GNN,9,76,14,0.18666666666666668,Melanoma; Blood group; Colorectal cancer; Ceroid lipofuscinosis; Mental retardation; Gastric cancer; Muscular dystrophy-dystroglycanopathy (congenital with brain and eye anomalies); Breast cancer; Leukemia; Congenital disorder of glycosylation
+rb_pots,Classical,8,76,27,0.36,Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Colorectal cancer; Hypercholesterolemia; Myopathy; Ceroid lipofuscinosis; Epileptic encephalopathy
+rber_pots,Classical,232,76,74,0.9866666666666667,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+sbm,Classical,190,76,74,0.9866666666666667,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+scan,Classical,32,76,6,0.08,?Charcot-Marie-Tooth disease; Breast cancer; Mitochondrial complex I deficiency; Leukodystrophy; Progressive external ophthalmoplegia with mitochondrial DNA deletions; Ichthyosis
+score,Classical,88,76,61,0.8133333333333334,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease; Schizophrenia
+spectral,Classical,72,76,60,0.8,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease; Atrial fibrillation
+surprise,Classical,576,76,75,1.0,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Epilepsy; Cardiomyopathy; Blood group; Deafness; Spinal muscular atrophy; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease
+teamcs,Classical,9,76,0,0.0,
+vgae_gnn,GNN,9,76,44,0.5866666666666667,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Cardiomyopathy; Blood group; Deafness; Charcot-Marie-Tooth disease; ?Charcot-Marie-Tooth disease; Corneal dystrophy; Schizophrenia
+walktrap,Classical,15,76,26,0.3466666666666667,Melanoma; Spinocerebellar ataxia; Myasthenic syndrome; Cardiomyopathy; Blood group; Schizophrenia; Atrial fibrillation; Colorectal cancer; Myopathy; Ceroid lipofuscinosis

@@ -1,0 +1,382 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{natbib}
+\bibliographystyle{unsrtnat}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\title{Supplementary Information\\
+\large ClusterNet: A Unified Benchmark for Classical and Graph-Neural Community Detection}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent This supplement accompanies the main manuscript. All paths refer to the benchmark repository layout on the authors' machine (\texttt{D:/\ldots}).
+
+%% =================================================================
+\section{Algorithm Descriptions and Computational Complexity}
+\label{sec:algo_descriptions}
+%% =================================================================
+
+This section provides mathematical formulations, objective functions, and computational complexity for all 38~algorithms evaluated in the main paper (Table~1). We use $n$ for the number of nodes, $m$ for the number of edges, and $K$ for the number of communities.
+
+%% -----------------------------------------------------------------
+\subsection{Modularity-based Methods}
+%% -----------------------------------------------------------------
+
+These algorithms optimize Newman--Girvan modularity~\citep{m__e__j__newman_cfc12888}:
+\[
+Q = \frac{1}{2m}\sum_{ij}\left[A_{ij} - \frac{k_i k_j}{2m}\right]\delta(c_i, c_j),
+\]
+where $A_{ij}$ is the adjacency matrix, $k_i$ is the degree of node $i$, and $\delta(c_i,c_j)=1$ if nodes $i$ and $j$ are in the same community.
+
+\paragraph{Louvain}~\citep{vincent_d__blondel_eead1c1a}.
+A greedy agglomerative algorithm that iterates two phases: (1)~each node is moved to the neighboring community yielding the largest $\Delta Q$; (2)~communities are contracted into super-nodes and the process repeats. Converges rapidly but may produce disconnected communities.\\
+\emph{Complexity:} $O(n \log n)$ empirically on sparse networks; worst case $O(nm)$.
+
+\paragraph{Leiden}~\citep{traag_leiden_2019}.
+Refines the Louvain algorithm by adding a refinement phase that guarantees well-connected ($\gamma$-connected) communities. After the local move phase, nodes within each community are partitioned into refined sub-communities before contraction.\\
+\emph{Complexity:} $O(n \log n)$ empirically; same asymptotic as Louvain with constant-factor overhead.
+
+\paragraph{FastGreedy.}
+The Clauset--Newman--Moore algorithm greedily merges pairs of communities to maximize $\Delta Q$, using a max-heap for efficient selection~\citep{m__e__j__newman_cfc12888}.\\
+\emph{Complexity:} $O(md\log n)$ where $d$ is the dendrogram depth; for sparse hierarchical networks $O(n\log^2 n)$.
+
+\paragraph{Walktrap.}
+Uses short random walks (typically $t=4$ steps) to define a distance between nodes; communities are identified via Ward's agglomerative hierarchical clustering on the walk-based distance matrix~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(mn^2)$ in the general case; $O(n^2\log n)$ for sparse graphs.
+
+%% -----------------------------------------------------------------
+\subsection{Information-theoretic Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{Infomap}~\citep{martin_rosvall_68b9da5e}.
+Minimizes the map equation, which measures the per-step description length of a random walker on the network using a two-level Huffman code:
+\[
+L(\mathcal{M}) = q_\curvearrowright H(\mathcal{Q}) + \sum_{i=1}^K p_{\circlearrowright}^i H(\mathcal{P}^i),
+\]
+where $q_\curvearrowright$ is the inter-module transition rate, $H(\mathcal{Q})$ is the entropy of module entry/exit codebook, and $H(\mathcal{P}^i)$ is the within-module codebook entropy. The algorithm uses a greedy search with refinement (Louvain-like moves) on the map equation.\\
+\emph{Complexity:} $O(m)$ per iteration; typically converges in $O(\log n)$ iterations.
+
+%% -----------------------------------------------------------------
+\subsection{Spectral Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{Spectral Clustering}~\citep{ulrike_von_luxburg_b9cd91aa}.
+Computes the $K$ smallest non-trivial eigenvectors of the normalized graph Laplacian $L_\text{sym} = I - D^{-1/2}AD^{-1/2}$ (or the random-walk Laplacian $L_\text{rw} = I - D^{-1}A$). Rows of the resulting $n \times K$ matrix are treated as node embeddings and clustered via $k$-means.\\
+\emph{Complexity:} $O(n K^2 + m K)$ for sparse eigendecomposition via Lanczos; $O(nK^2 t)$ for $k$-means with $t$ iterations.
+
+\paragraph{Leading Eigenvector.}
+Recursively bisects the network by computing the leading eigenvector of the modularity matrix $B_{ij} = A_{ij} - k_i k_j / 2m$. Nodes are assigned to two groups based on the sign of eigenvector components; the process recurses until $\Delta Q \leq 0$~\citep{m__e__j__newman_cfc12888}.\\
+\emph{Complexity:} $O(m + n)$ per bisection via power iteration; $O((m+n)\log K)$ overall for $K$ communities.
+
+%% -----------------------------------------------------------------
+\subsection{Statistical Inference Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{Stochastic Block Model (SBM)}~\citep{peixoto_sbm_2014}.
+Fits a generative model where edge probabilities depend only on community membership. The log-likelihood for partition $\mathbf{b}$ under the degree-corrected SBM is:
+\[
+\log P(G|\mathbf{b}) = \sum_{rs} m_{rs}\log\frac{m_{rs}}{n_r n_s} - \sum_i \log k_i!
+\]
+where $m_{rs}$ is the edge count between blocks $r,s$ and $n_r$ is block size. Inference uses MCMC or greedy agglomeration to minimize the description length $\Sigma = -\log P(G|\mathbf{b}) - \log P(\mathbf{b})$.\\
+\emph{Complexity:} $O(n\log^2 n)$ for greedy agglomeration; $O(n)$ per MCMC sweep.
+
+\paragraph{Nested SBM}~\citep{tiago_p__peixoto_7fc46d1a}.
+Extends the SBM with a hierarchy of priors: the partition at each level is itself generated by an SBM at the level above, forming a nested hierarchy. This avoids resolution limits and enables principled model selection via the full description length across all levels.\\
+\emph{Complexity:} $O(n\log^2 n)$ for greedy hierarchical agglomeration; additional constant factor per hierarchy level.
+
+\paragraph{Expectation--Maximization (EM).}
+Fits the planted partition model (a symmetric SBM with two parameters: within-community $p_\text{in}$ and between-community $p_\text{out}$) via the EM algorithm. The E-step computes soft membership probabilities; the M-step updates model parameters~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(nK)$ per iteration; typically 10--50 iterations to converge.
+
+%% -----------------------------------------------------------------
+\subsection{Label Propagation and Local Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{Label Propagation.}
+Each node adopts the label most frequent among its neighbors (breaking ties uniformly at random). Iterates until convergence (no label changes). Near-linear time but non-deterministic~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(m)$ per iteration; converges in $O(\log n)$ iterations empirically.
+
+\paragraph{Spinglass.}
+Maps community detection to finding the ground state of a Potts spin glass Hamiltonian:
+\[
+\mathcal{H}(\sigma) = -\sum_{ij} J_{ij}\delta(\sigma_i, \sigma_j),
+\]
+where $J_{ij}$ encodes attraction between connected nodes and repulsion between non-connected nodes. Optimized via simulated annealing~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(n^2)$ per temperature step due to non-edge repulsion terms; limited to small/medium networks.
+
+\paragraph{SCAN (Structural Clustering Algorithm for Networks).}
+Uses a structural similarity measure $\sigma(u,v) = |\Gamma(u)\cap\Gamma(v)|/\sqrt{|\Gamma(u)||\Gamma(v)|}$ to classify nodes as core, border, or outlier (analogous to DBSCAN in metric spaces). Cores with similarity above threshold $\epsilon$ and minimum neighbors $\mu$ form clusters~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(m)$ for sparse graphs.
+
+%% -----------------------------------------------------------------
+\subsection{Resolution-based Methods}
+%% -----------------------------------------------------------------
+
+These methods use a Potts-model formulation with resolution parameter $\gamma$:
+
+\paragraph{CPM (Constant Potts Model).}
+Optimizes the Hamiltonian $\mathcal{H} = -\sum_{ij}(A_{ij} - \gamma)\delta(c_i, c_j)$, where $\gamma$ sets an absolute edge-density threshold for communities. Communities must have internal density exceeding $\gamma$~\citep{traag_leiden_2019}.\\
+\emph{Complexity:} Same as the optimization backend (Leiden/Louvain): $O(n\log n)$ empirically.
+
+\paragraph{RB-Pots (Reichardt--Bornholdt with Erdős--Rényi null model).}
+Optimizes:
+\[
+\mathcal{H} = -\sum_{ij}\left[A_{ij} - \gamma\frac{2m}{n(n-1)}\right]\delta(c_i, c_j).
+\]
+Uses a uniform (Erdős--Rényi) null model instead of the configuration model, making the resolution parameter $\gamma$ control the expected density of random connections subtracted.\\
+\emph{Complexity:} $O(n\log n)$ empirically (Leiden backend).
+
+\paragraph{RBer-Pots (Reichardt--Bornholdt with configuration null model).}
+Optimizes the generalized modularity:
+\[
+\mathcal{H} = -\sum_{ij}\left[A_{ij} - \gamma\frac{k_i k_j}{2m}\right]\delta(c_i, c_j).
+\]
+This is equivalent to standard modularity when $\gamma=1$, and allows multi-resolution community detection by varying $\gamma$~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(n\log n)$ empirically (Leiden backend).
+
+%% -----------------------------------------------------------------
+\subsection{Density and Surprise-based Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{Async Fluid Communities.}
+An asynchronous fluid-dynamics inspired algorithm: $K$ ``fluids'' expand from random seeds, with each fluid's density (community label) propagating to neighbors proportionally to its current share. Converges when labels stabilize~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(m)$ per iteration; requires $K$ to be specified.
+
+\paragraph{Surprise.}
+Optimizes the Surprise quality function, defined as the negative log-probability of observing at least the given number of intra-community edges under a hypergeometric null model:
+\[
+S = -\log \sum_{j=p}^{\min(M,m)} \frac{\binom{M}{j}\binom{\binom{n}{2}-M}{m-j}}{\binom{\binom{n}{2}}{m}},
+\]
+where $p$ is the observed intra-community edge count and $M = \sum_c \binom{n_c}{2}$ is the number of possible intra-community pairs~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} Optimization uses greedy agglomeration: $O(n\log n)$ empirically.
+
+%% -----------------------------------------------------------------
+\subsection{Overlapping Community Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{Angel.}
+Identifies overlapping communities by merging ego-networks: each node's ego-network (1-hop subgraph) is internally partitioned, then pairs of resulting micro-communities are merged if their Jaccard similarity exceeds a threshold $\theta$. Produces soft assignments~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(n \cdot d_{\max}^2)$ where $d_{\max}$ is the maximum degree; merge phase $O(K^2)$.
+
+\paragraph{Demon.}
+Similar to Angel but uses label propagation within each ego-network for the local partitioning step, followed by democratic merging of overlapping micro-communities~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(n\cdot d_{\max})$ for ego-network extraction and local label propagation.
+
+\paragraph{$k$-Clique Percolation}~\citep{gergely_palla_c9fbd5c7}.
+Defines communities as maximal unions of adjacent $k$-cliques, where two $k$-cliques are adjacent if they share $k{-}1$ nodes. Naturally produces overlapping communities (nodes in multiple $k$-clique chains).\\
+\emph{Complexity:} $O(\exp(d_{\max}))$ worst case for clique enumeration; practical for sparse networks with small cliques.
+
+%% -----------------------------------------------------------------
+\subsection{DREAM Challenge-derived Methods}
+%% -----------------------------------------------------------------
+
+These methods were top-performing entries in the DREAM Disease Module Identification Challenge~\citep{choobdar_dream_2019}, designed for biological network analysis:
+
+\paragraph{SCORE.}
+Uses spectral clustering on the adjacency matrix combined with a rotation-based refinement to identify core modules, followed by expansion to assign remaining nodes. Specifically designed for PPI networks with modular structure.\\
+\emph{Complexity:} $O(nK^2 + mK)$ for spectral decomposition and assignment.
+
+\paragraph{TeamCS (Ensemble Hierarchical Clustering).}
+A multi-resolution ensemble method~\citep{choobdar_dream_2019}. Step~1: the Louvain algorithm is run at multiple resolution parameters ($\gamma = 0.1, 0.2, \ldots, 1.0$), producing 10~partitions. Step~2: an ensemble matrix is constructed (rows = nodes, columns = resolutions, entries = community IDs). Step~3: pairwise Hamming distances between node vectors quantify how consistently each pair co-clusters across resolutions. Step~4: single-linkage hierarchical clustering is applied to the distance matrix with a threshold (e.g., 0.2), grouping nodes that consistently co-cluster into robust communities. Step~5: orphan nodes (those in clusters $<3$) are re-clustered via a final Louvain pass on their induced subgraph. Memory-optimized using sparse matrices for graphs $>10{,}000$ nodes, \texttt{int16} partition labels, and explicit garbage collection.\\
+\emph{Complexity:} $O(T \cdot n\log n)$ for $T$ Louvain runs; $O(n^2)$ for pairwise distance and hierarchical clustering.
+
+\paragraph{BigS2.}
+A multi-stage hybrid spectral clustering method designed for biological networks~\citep{choobdar_dream_2019}. The core uses the SCORE technique (Spectral Clustering on Ratios of Eigenvectors): given a subgraph's adjacency matrix, the top-$K$ eigenvectors are computed, and all but the first are divided element-wise by the leading eigenvector to yield ratio features that normalize node importance across potential clusters. $K$-means is applied to these ratio features. The algorithm uses a divide-and-conquer strategy: an initial SCORE pass partitions the full graph into coarse clusters; any cluster exceeding a size threshold is recursively re-partitioned on its induced subgraph until all communities fall within the desired size range $[\texttt{min\_size}, \texttt{max\_size}]$. A hybrid CPU/GPU execution model transfers large subgraphs ($>$ \texttt{gpu\_threshold} nodes) to CuPy/cuML for eigendecomposition and $K$-means, falling back to NumPy/SciPy for smaller subgraphs where GPU transfer overhead dominates.\\
+\emph{Complexity:} $O(nK^2)$ per recursive level for eigendecomposition; $O(\log(n/\texttt{max\_size}))$ recursive levels.
+
+\paragraph{CSBIO-IITM2 (Recursive Infomap).}
+A multi-level, recursive community detection method~\citep{choobdar_dream_2019}. Pre-computation: the global strength (total weighted degree) for every node is computed, and the reciprocal log-strength serves as a ``rarity'' score reflecting how informative each node's co-occurrence is. An initial Infomap pass produces top-level communities. The algorithm then iterates: communities within the target size range are kept; those smaller than a minimum threshold are discarded; those exceeding the size threshold are refined by constructing a new similarity graph whose edge weights sum the rarity scores of common neighbors in the original graph, sparsifying weak edges below a percentile threshold, and re-running Infomap on the sparsified subgraph. Refinement recurses until no communities exceed the threshold. Supports parallel processing of independent clusters via joblib.\\
+\emph{Complexity:} $O(m)$ per Infomap call; $O(n^2 / K)$ worst case for similarity construction per recursion level; total depth depends on community-size distribution.
+
+%% -----------------------------------------------------------------
+\subsection{Other Heuristic Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{AGDL (Agglomerative algorithm based on $k$-nearest neighbor graph).}
+Constructs a $k$-NN graph from pairwise node similarities (based on common neighbors), then applies agglomerative hierarchical clustering with average-linkage merging~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(n^2\log n)$ for hierarchical clustering; $O(nk)$ for $k$-NN construction.
+
+\paragraph{DER (Diffusion Entropy Reducer).}
+Runs short diffusion processes on the graph and clusters nodes by similarity of their diffusion profiles (probability distributions after $t$ steps). Entropy reduction identifies natural community boundaries~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(mt + nK)$ for diffusion and subsequent clustering.
+
+\paragraph{GDMP2 (Greedy Discrete Model-based Partitioning 2).}
+Iteratively refines an initial partition by moving boundary nodes between adjacent communities, selecting moves that maximize a discrete model-based score related to the likelihood of the observed inter-community connectivity pattern~\citep{santo_fortunato_93a74814}.\\
+\emph{Complexity:} $O(m)$ per iteration; converges in $O(\log n)$ iterations empirically.
+
+\paragraph{SimNet (Similarity Network-based).}
+A two-level clustering method~\citep{choobdar_dream_2019}. Level~1 performs spectral clustering on the original graph to obtain initial coarse communities. Level~2 applies matrix denoising (via singular value thresholding with parameters $\lambda, \beta$) to the adjacency submatrix of each community exceeding a size threshold, then runs agglomerative (Ward's) clustering on the denoised subgraph to split it into finer communities. The algorithm supports optional GPU acceleration: CuPy for SVD (though GPU SVD is slower than CPU for networks below ${\sim}1{,}000$ nodes) and cuML for agglomerative clustering (single-linkage variant, with some accuracy trade-off).\\
+\emph{Complexity:} $O(nK^2)$ for initial spectral clustering; $O(n_c^3)$ for denoising each community of size $n_c$; overall $O(n^2)$ in the worst case.
+
+\paragraph{SVT (Singular Value Thresholding / Tianle).}
+Applies singular value decomposition to the adjacency matrix (optionally after network denoising via SVT iteration with threshold $\delta$ and convergence parameter $e$), retaining the top $k$ singular vectors as node embeddings. A $k$-nearest-neighbor graph is constructed in the embedding space, and Ward's agglomerative hierarchical clustering is applied with a module-size constraint to produce final communities. Memory-optimized via \texttt{float32} storage and explicit garbage collection, achieving ${\sim}94\%$ memory reduction and $1.66\times$ speedup over the na\"ive implementation.\\
+\emph{Complexity:} $O(nk^2)$ for truncated SVD; $O(n^2\log n)$ for hierarchical clustering with $n$ nodes.
+
+\paragraph{Tusk (DSD + Recursive Spectral).}
+Combines Diffusion State Distance (DSD) with recursive spectral clustering. The graph is first decomposed into connected components. For each component, DSD is computed: random walks of $k{=}7$ steps yield probability distributions per node, and the $L_1$ distance between these distributions defines inter-node dissimilarity. The DSD matrix is converted to an affinity matrix (RBF kernel) and spectral clustering is applied with $k_\text{components}$ initial clusters. Any resulting cluster larger than 100~nodes is recursively isolated as a subgraph, its DSD recomputed, and spectral clustering re-applied until all communities are $\leq 100$ nodes. Handles both directed and undirected networks natively via the random-walk formulation.\\
+\emph{Complexity:} $O(n^2)$ for DSD matrix (dense); $O(n^3)$ for matrix operations; best suited for components with $<5{,}000$ nodes.
+
+%% -----------------------------------------------------------------
+\subsection{GNN: Differentiable Pooling}
+%% -----------------------------------------------------------------
+
+\paragraph{DMoN}~\citep{tsitsulin_dmon_2023}.
+Learns a soft assignment matrix $S \in \mathbb{R}^{n \times K}$ via a GNN encoder, optimizing a differentiable modularity-based loss:
+\[
+\mathcal{L}_\text{DMoN} = -\frac{1}{2m}\text{Tr}(S^\top B S) + \frac{\sqrt{K}}{n}\|S^\top S - I\|_F,
+\]
+where $B$ is the modularity matrix and the second term is a collapse regularizer preventing all nodes from being assigned to a single cluster. Hard assignments are obtained via $\arg\max$.\\
+\emph{Complexity:} $O(m K + n K^2)$ per forward pass; $O(E \cdot(mK + nK^2))$ for $E$ training epochs.
+
+\paragraph{MinCutPool}~\citep{bianchi_mincut_2020}.
+Also learns a soft assignment $S$ via a GNN but optimizes a normalized-cut objective:
+\[
+\mathcal{L}_\text{MinCut} = -\frac{\text{Tr}(S^\top A S)}{\text{Tr}(S^\top D S)} + \frac{\|S^\top S / n - I/K\|_F}{\|S^\top S / n - I/K\|_F + \epsilon},
+\]
+which minimizes the ratio of cut edges to volume. The orthogonality regularizer prevents degenerate solutions.\\
+\emph{Complexity:} $O(mK + nK^2)$ per forward pass; same training cost as DMoN.
+
+%% -----------------------------------------------------------------
+\subsection{GNN: Self-supervised Representation Learning}
+%% -----------------------------------------------------------------
+
+\paragraph{VGAE (Variational Graph Auto-Encoder)}~\citep{thomas_kipf_6638cd97}.
+Encodes nodes into a latent space $Z$ via a GCN encoder $q(Z|X,A) = \prod_i q(z_i|X,A)$ with $q(z_i|X,A) = \mathcal{N}(\mu_i, \text{diag}(\sigma_i^2))$. The decoder reconstructs the adjacency via inner products: $p(A_{ij}=1|z_i,z_j) = \sigma(z_i^\top z_j)$. Training maximizes the ELBO:
+\[
+\mathcal{L}_\text{VGAE} = \mathbb{E}_{q(Z|X,A)}[\log p(A|Z)] - \text{KL}[q(Z|X,A)\|p(Z)].
+\]
+Community assignment: $k$-means on the learned $\mu$ embeddings.\\
+\emph{Complexity:} $O(mF + nFK)$ per epoch where $F$ is the hidden dimension.
+
+\paragraph{DGI (Deep Graph Infomax)}~\citep{velickovic_dgi_2019}.
+Maximizes mutual information between node-level patch representations $h_i$ and a global graph summary $s = \text{readout}(\{h_i\})$ via a bilinear discriminator:
+\[
+\mathcal{L}_\text{DGI} = \frac{1}{2n}\left[\sum_i \log\mathcal{D}(h_i, s) + \sum_j \log(1 - \mathcal{D}(\tilde{h}_j, s))\right],
+\]
+where $\tilde{h}_j$ are negative samples from a corrupted graph. Community assignment: $k$-means on $h$.\\
+\emph{Complexity:} $O(mF + nF)$ per epoch; $O(nFK)$ for final $k$-means.
+
+%% -----------------------------------------------------------------
+\subsection{GNN: Semi-supervised Classification}
+%% -----------------------------------------------------------------
+
+\paragraph{GCN (Graph Convolutional Network)}~\citep{thomas_kipf_d7121869}.
+Applies layer-wise propagation:
+\[
+H^{(\ell+1)} = \sigma\!\left(\tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}H^{(\ell)}W^{(\ell)}\right),
+\]
+where $\tilde{A} = A + I$ (self-loops), $\tilde{D}$ is the corresponding degree matrix, $W^{(\ell)}$ are learnable weights, and $\sigma$ is a non-linearity (ReLU). Trained with cross-entropy on labeled nodes; community assignment via $\arg\max$ of the output softmax.\\
+\emph{Complexity:} $O(mF + nF^2)$ per layer per epoch; two layers used in our experiments.
+
+\paragraph{GAT (Graph Attention Network)}~\citep{velickovic_gat_2018}.
+Replaces the fixed Laplacian normalization of GCN with learnable attention coefficients:
+\[
+\alpha_{ij} = \frac{\exp(\text{LeakyReLU}(a^\top [Wh_i \| Wh_j]))}{\sum_{k\in\mathcal{N}(i)}\exp(\text{LeakyReLU}(a^\top [Wh_i \| Wh_k]))},
+\]
+where $a$ and $W$ are learned parameters and $\|$ denotes concatenation. Multi-head attention with $H$ heads concatenates or averages outputs. Same training objective and assignment as GCN.\\
+\emph{Complexity:} $O(mFH + nF^2H)$ per layer; slightly higher constant than GCN due to attention computation.
+
+%% -----------------------------------------------------------------
+\subsection{GNN: Baseline Methods}
+%% -----------------------------------------------------------------
+
+\paragraph{MLP + $k$-means.}
+A two-layer multilayer perceptron (no message passing) applied independently to each node's feature vector $x_i$, producing embeddings that are clustered via $k$-means. Serves as an ablation to quantify the benefit of graph structure.\\
+\emph{Complexity:} $O(nF^2)$ per epoch for MLP; $O(nFK)$ for $k$-means.
+
+\paragraph{Node2Vec + $k$-means}~\citep{grover_node2vec_2016}.
+Learns node embeddings by performing biased random walks (controlled by return parameter $p$ and in-out parameter $q$) and optimizing a Skip-gram objective. Ignores node features entirely. Embeddings are clustered via $k$-means.\\
+\emph{Complexity:} $O(n \cdot L \cdot W)$ for walk generation ($L$=walk length, $W$=walks per node); $O(n \cdot F \cdot \text{neg})$ for Skip-gram; $O(nFK)$ for $k$-means.
+
+\bigskip
+\noindent A summary of time complexities is provided in Table~\ref{tab:complexity_summary}.
+
+\begin{table}[h]
+\centering
+\caption{Computational complexity summary for all algorithm families.}
+\label{tab:complexity_summary}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Family} & \textbf{Representative} & \textbf{Complexity} \\
+\midrule
+Modularity-based & Louvain / Leiden & $O(n\log n)$ empirical \\
+Information-theoretic & Infomap & $O(m\log n)$ \\
+Spectral & Spectral clustering & $O(nK^2 + mK)$ \\
+Statistical inference & SBM / Nested SBM & $O(n\log^2 n)$ \\
+Label propagation & Label Prop. & $O(m)$ per iter \\
+Resolution-based & CPM / RB-Pots & $O(n\log n)$ empirical \\
+Density/surprise & Surprise & $O(n\log n)$ empirical \\
+Overlapping & $k$-Clique & $O(\exp(d_{\max}))$ worst \\
+DREAM-derived & SCORE / TeamCS & $O(nK^2)$--$O(n^2)$ \\
+Other heuristics & AGDL / DER & $O(n^2\log n)$--$O(mt)$ \\
+GNN diff.\ pooling & DMoN / MinCut & $O(mK + nK^2)$/epoch \\
+GNN self-supervised & VGAE / DGI & $O(mF + nFK)$/epoch \\
+GNN semi-supervised & GCN / GAT & $O(mF + nF^2)$/layer \\
+GNN baselines & Node2Vec+$k$M & $O(nLW + nFK)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Citations, DOIs, and clickable links in the PDF}
+\begin{itemize}
+  \item In the main PDF, \textbf{in-text citations} (\texttt{$\backslash$citep\{...\}}, \texttt{$\backslash$citet\{...\}} with \texttt{natbib}) link to the corresponding entry in the \textbf{References} list when \texttt{hyperref} is loaded---they are not arbitrary URLs pasted into the text.
+  \item Bibliography entries in \texttt{references.bib} use standard fields (\texttt{doi}, \texttt{journal}, etc.). Whether the DOI appears as a \textbf{clickable} hyperlink depends on your BibTeX style (\texttt{unsrtnat}) and post-processing; many styles print the DOI as plain text. To force clickable DOIs, consider switching to \texttt{biblatex} with \texttt{doi=true}, or add explicit \texttt{url = \{https://doi.org/...\}} fields and a style that renders them.
+  \item External links (\texttt{$\backslash$href}, \texttt{url} environment) are clickable when valid URIs are supplied.
+\end{itemize}
+
+\section{LFR benchmark reproducibility}
+\input{tables/lfr_validation_report.tex}
+
+\section{Full LFR numerical tables}
+\subsection*{Supplementary Table S1 --- Accuracy (AMI)}
+\input{tables/lfr_accuracy_full.tex}
+
+\subsection*{Supplementary Table S2 --- Scalability (AMI and time)}
+\input{tables/lfr_scalability_full.tex}
+
+\section{Social benchmark reproducibility}
+\input{tables/social_validation_report.tex}
+
+\section{Full social numerical tables}
+\subsection*{Supplementary Table S3 --- Classical AMI (excluding SBM fallbacks)}
+\input{tables/social_classical_full.tex}
+
+\subsection*{Supplementary Table S4 --- GNN AMI by feature type}
+\input{tables/social_gnn_ablation_full.tex}
+
+\subsection*{Supplementary Table S5 --- Top 10 methods per network}
+\input{tables/social_top_per_network.tex}
+
+\section{Biological benchmark reproducibility}
+\input{tables/bio_validation_report.tex}
+
+\section{Full biological numerical tables}
+\subsection*{Supplementary Table S6 --- Full enrichment results (GO/KEGG)}
+\input{tables/bio_enrichment_full.tex}
+
+\subsection*{Supplementary Table S7 --- Perturbation stability summary}
+\input{tables/bio_perturbation.tex}
+
+\subsection*{Supplementary Table S8 --- Disease module overlap (BioGRID vs OMIM)}
+\input{tables/bio_disease_overlap.tex}
+
+\subsection*{Supplementary Table S9 --- Biological feature ablation (modularity by feature type)}
+\input{tables/bio_ablation_table.tex}
+
+\bibliography{references}
+
+\end{document}
