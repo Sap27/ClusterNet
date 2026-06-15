@@ -26,7 +26,7 @@ class LouvainAlgorithm:
         
         # Calculate node degrees (weighted)
         # In a weighted undirected graph, degree = sum of weights of incident edges
-        self.node_weights = {n: sum(d.values()) for n, d in self.adj.items()}
+        self.node_weights = {n: sum(nbr_data.get('weight', 1.0) for nbr_data in d.values()) for n, d in self.adj.items()}
 
     def _preprocess_graph(self, input_G):
         """
@@ -193,7 +193,8 @@ class LouvainAlgorithm:
         for node, com_id in partition.items():
             if com_id not in clusters:
                 clusters[com_id] = []
-            clusters[com_id].append(str(node))
+            # Preserve original node type (don't convert to string)
+            clusters[com_id].append(node)
         return list(clusters.values())
 
 # ==========================================

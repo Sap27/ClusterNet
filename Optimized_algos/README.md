@@ -1,148 +1,253 @@
-# Community Detection Algorithms
+# ClusterNet
 
-This Python module contains the code for implementing 21 community detection algorithms. The module `community_detection_1` can be imported in an external script or accessed through the CLI.
+**Disentangling When and Why Graph Neural Networks Surpass Classical Community Detection on Biological Networks**
 
-## Requirements
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch Geometric](https://img.shields.io/badge/PyG-2.0+-orange.svg)](https://pytorch-geometric.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-- Java version 23.01
-- R version >= 4.2
-- Python version >= 3.10 (Python libraries required are mentioned in the `setup.py` file)
-- WSL Environment
+ClusterNet is a unified benchmarking framework that evaluates **30 classical** and **8 GNN-based** community detection algorithms under identical experimental conditions across three tiers of increasing biological realism. It accompanies the paper submitted to the [HICSS-60 Minitrack on AI Analysis in Network Biology](https://hicss.hawaii.edu/).
+
+---
+
+## Key Findings
+
+| Finding | Evidence |
+|---------|----------|
+| GNNs are **conditionally** better | They require informative node features + sparse topology |
+| Biological features boost GNN performance | GO annotations improve modularity by 56–100% on sparse regulatory networks |
+| GAT learns regulatory specificity | Attention correlates negatively with TF out-degree (ρ = −0.92, p < 10⁻²⁶⁹) |
+| DGI is the most perturbation-robust GNN | NMI = 0.51 under TF knockout; supervised GNNs collapse (NMI < 0.14) |
+| Dense networks nullify GNN advantage | On GTEx (1.4M edges), Leiden matches or exceeds GNN performance |
+
+---
+
+## Three-Tier Evaluation
+
+```
+Tier 1: LFR Synthetic       →  Controlled baseline (no features, known ground truth)
+Tier 2: Social Networks      →  Feature ablation (Cora, CiteSeer, Amazon Photo)
+Tier 3: Biological Networks  →  Real test (SIGNOR, GRN, BioGRID, GTEx)
+```
+
+**Tier 1** establishes that GNNs underperform classical methods without informative features.  
+**Tier 2** quantifies the feature contribution via systematic ablation.  
+**Tier 3** evaluates biological coherence (GO/KEGG enrichment, FFL preservation, sign coherence, perturbation robustness) and demonstrates GNN interpretability through attention weight and embedding analysis.
+
+---
+
+## Repository Structure
+
+```
+ClusterNet/
+├── paper/                          # Manuscript, figures, and tables
+│   ├── main.tex                    # Main paper (LaTeX)
+│   ├── supplementary.tex           # Supplementary material
+│   ├── references.bib              # Bibliography
+│   ├── figures/                    # All PDF figures
+│   ├── tables/                     # All LaTeX tables
+│   ├── plot_lfr.py                 # LFR figure generation
+│   ├── plot_social.py              # Social figure generation
+│   ├── plot_bio.py                 # Biological figure generation
+│   └── validate_*.py              # Manuscript number validation scripts
+├── Optimized_algos/
+│   ├── clusternet/                 # Core package
+│   │   ├── algorithms/             # Classical algorithm implementations
+│   │   │   ├── cdlib_wrappers/     # CDlib integrations
+│   │   │   └── ...                 # Custom implementations
+│   │   ├── gnn/                    # GNN implementations
+│   │   │   ├── base_gnn.py         # Base class with embedding export
+│   │   │   └── models/             # DMoN, MinCut, VGAE, DGI, GAT, GCN, ...
+│   │   └── utils/                  # Evaluation metrics, graph I/O
+│   ├── benchmarks/
+│   │   ├── lfr/                    # Tier 1: LFR benchmarks
+│   │   ├── social/                 # Tier 2: Social network benchmarks
+│   │   └── biological/             # Tier 3: Biological network benchmarks
+│   │       ├── run_benchmark.py    # Main biological benchmark runner
+│   │       ├── run_perturbation.py # Perturbation analysis
+│   │       ├── run_hicss_experiments.sh  # GPU experiment orchestrator
+│   │       ├── plot_bio_feature_ablation.py
+│   │       ├── plot_bio_embeddings.py
+│   │       ├── analyse_attention.py
+│   │       └── config.py           # Data paths configuration
+│   ├── requirements-clusternet.txt
+│   └── setup.py
+```
+
+---
+
+## Algorithms (38 Total)
+
+### Classical (30)
+
+| Family | Algorithms |
+|--------|-----------|
+| Modularity | Louvain, Leiden, FastGreedy, Walktrap |
+| Information-theoretic | Infomap |
+| Spectral | Spectral Clustering, Leading Eigenvector |
+| Statistical inference | SBM, Nested SBM, EM |
+| Label propagation / local | Label Propagation, Spinglass, SCAN, Async Fluid, Surprise |
+| Resolution-based | CPM, RB-Pots, RBer-Pots |
+| Overlapping | Angel, Demon, k-Clique |
+| DREAM-derived | SCORE, TeamCS, BigS2, CSBIO-IITM2 |
+| Other heuristics | AGDL, DER, GDMP2, SimNet, SVT, Tusk |
+
+### GNN-Based (8)
+
+| Category | Models | Features | Labels |
+|----------|--------|----------|--------|
+| Differentiable pooling | DMoN, MinCutPool | Yes | No |
+| Representation learning | VGAE+KM, DGI+KM | Yes | No |
+| Semi-supervised | GCN, GAT | Yes | Yes |
+| Baselines | MLP+KM (features only), Node2Vec+KM (topology only) | Varies | No |
+
+All GNN models: 2-layer encoder, hidden dim 128, 600 epochs, Adam (lr = 10⁻³), PyTorch Geometric.
+
+---
 
 ## Installation
 
-1. Go to the directory containing the downloaded package in the terminal.
-2. Run the following command:
+```bash
+cd Optimized_algos
 
-    ```sh
-    pip install -e .
-    ```
+# Core dependencies
+pip install -r requirements-clusternet.txt
 
-## How to Run the Program
+# Install package in editable mode
+pip install -e .
 
-The Python module takes in an edgelist file or a NetworkX graph as input and returns a list of lists containing the communities. It optionally writes the output into a `.txt` file when the path for the same is provided. An example usage utilizing the Python CLI is highlighted below:
+# GNN support (GPU)
+pip install torch torchvision torchaudio
+pip install torch-geometric
+pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
 
-```sh
-python -m community_detection_1.main network.dat MLRMCL --output_file output.txt--algorithm_args largest=50
+# SBM algorithms (requires conda)
+conda install -c conda-forge graph-tool
 ```
 
-`community_detection_1` is the name of the Python package. The input file is `network.dat` and the algorithm chosen for this example is `MLRMCL`. The output path is specified as `output.txt` and `largest=50` is one of the parameters of the algorithm.
+---
 
-## List of Implemented Algorithms and Corresponding Arguments
+## Reproducing Experiments
 
-### General Algorithm Arguments
-1. `weighted` (can be `True` or `False`)
-2. `directed` (can be `True` or `False`)
+### Tier 1: LFR Benchmarks
 
-### Specific Algorithms
+```bash
+cd benchmarks/lfr
+python run_accuracy_benchmark.py        # Accuracy vs mixing parameter
+python run_scalability_benchmark.py     # Scalability (N=500 to 25,000)
+python run_hierarchical_benchmark.py    # Hierarchical community detection
+```
 
-<!-- 1. **MLRMCL**
-    - `largest` (integer indicating the maximum allowed size of a community)
-    - `filters` ("quantile", "pageRank", "double")
-    - `inteWeight` ("no", "yes") 
-NO -->
+### Tier 2: Social Networks
 
-2. **team_cs**
-    - `Recursive` (True, False)
+```bash
+cd benchmarks/social
+python data_preparation.py              # Download Cora, CiteSeer, Amazon Photo
+python run_benchmark.py                 # Run all algorithms + feature ablation
+```
 
-3. **tripleahc**
-    - `t1` (weight threshold - lower limit)
-    - `t2` (weight threshold - upper limit)
+### Tier 3: Biological Networks
 
-4. **zhenhua**
-    - `max_limit` (integer indicating the maximum allowed size of a community)
-    - `method` (1 for walktrap, 2 for infomap)
+```bash
+cd benchmarks/biological
 
-<!-- 5. **walktrap**
-    - `steps` (any integer)
-Alr
-6. **spin_glass**
-    - `spins` (corresponds to number of communities)
-Alr -->
-7. **louvain**
-    - `resolution` (0.1-10)
+# Configure data paths
+# Edit config.py: BIO_DATA_DIR = Path('/path/to/BIologicalNetworks')
 
-<!-- 8. **fast_greedy**
-Alr -->
-9. **luminex**
-    - `p` (0.1-10, corresponds to resolution)
+# Run full experiment suite (GPU recommended)
+bash run_hicss_experiments.sh
 
-10. **nextmr**
-    - `min_limit` (minimum size of allowed clusters)
+# Or run individual experiments:
+python run_benchmark.py --experiment ablation      # Feature ablation
+python run_benchmark.py --experiment embeddings    # Embedding export
+python run_benchmark.py --experiment attention     # GAT attention export
+python run_perturbation.py                         # Perturbation analysis
+```
 
-<!-- 11. **Spectral_clustering**
-    - `n_clusters` (number of output clusters)
-    - `n_components` (dimension of latent representation)
-Alr -->
-12. **tuskdmi**
-    - `num_com` (number of output communities)
+### Post-Processing and Figure Generation
 
-13. **bigs2**
-    - `min_size` (minimum size of output community)
-    - `max_size` (maximum size of output community)
-    - `Max_iter` (number of iterations)
+```bash
+# Biological post-processing
+python plot_bio_feature_ablation.py --results-dir /path/to/results
+python plot_bio_embeddings.py --results-dir /path/to/results
+python analyse_attention.py --results-dir /path/to/results
 
-<!-- 14. **bluegenes**
-    - `min_limit` (minimum size of output communities)
-    - `alpha` (can be 1, 1.5, or 2)
-    - `cut_size` (0.999 when community structure not very clear, 0.99 otherwise)
-No -->
-15. **SpecHier**
-    - `groupNumber` (number of output communities)
+# Paper figures
+cd ../../paper
+python plot_lfr.py
+python plot_social.py
+python plot_bio.py
+```
 
-<!-- 16. **Dcut**
-    - `min_limit` (minimum size of output community)
-    - `max_limit` (maximum size of output community)
-No -->
-17. **csbioiitm_hamming**
+---
 
-18. **SVT**
-    - `n_clusters` (number of output communities)
+## Quick Start (Python API)
 
-<!-- 19. **label_propagation**
-    - `spins` (upper limit for number of communities)
-Alr -->
-20. **shared_neighbor**
-    - `limit` (any integer)
-
-<!-- 21. **girvan_newman**
-    - `most_valuable_edge` (tuple (u,v))
-Alr -->
-## Example for Importing in an External Python Script
-sh
 ```python
-import community_detection_1.main as main
-res = main.run_community_detection('network.dat', 'blue_genes')```
+from clusternet import CommunityDetector
+import networkx as nx
 
-The introduction does acknowledge the existence of deep-learning techniques but their inclusion is missing from the methods and result sections.
+G = nx.karate_club_graph()
 
-Other paradigms like the Statistical‑inference block‑models (vanilla SBM and degree‑corrected SBM, Bayesian / nested SBM, etc),
-https://cdlib.readthedocs.io/en/v0.1.9/reference/cd_algorithms/node_clustering.html
-similar to ours they have clustering algorithms . 
-deeplearning , overalappping community detection algorithms, statistical algorithms
-https://graph-tool.skewed.de/static/docs/stable/autosummary/graph_tool.generation.generate_sbm.html
-https://github.com/aditya-grover/node2vec
-Clustering (Your Goal): This is the most common use. You run node2vec to get a 128-dimensional vector for each node. Then, you feed these vectors into a simple algorithm like K-Means. The resulting K-Means clusters are your network communities.
-https://stellargraph.readthedocs.io/en/stable/demos/link-prediction/node2vec-link-prediction.html
+# Classical
+detector = CommunityDetector(algorithm='leiden', resolution=1.0)
+communities = detector.detect(G)
 
- Neural and embedding‑based methods (GNNs, graph auto‑encoders, node2vec, etc.) are also absent in the benchmark.
-https://github.com/pyg-team/pytorch_geometric
-https://www.dgl.ai/dgl_docs/
-Within the covered classes algorithms like Leiden for modularity and SCORE for spectral are also missing.
+# GNN (requires node features)
+from clusternet.gnn.models import DMoNCluster
+model = DMoNCluster(n_clusters=4, device='cuda')
+communities = model.fit_predict(G, features=X)
+```
 
-The manuscript benchmarks all algorithms on a CPU, yet the field is rapidly shifting toward hardware accelerators (GPUs/TPUs). Although the authors state that "the classical algorithms we implemented offer limited scope for GPU optimizations". But recent libraries like JAX + Jraph, PyTorch Geometric, and RAPIDS cuGraph provide ready‑made primitives for batching, scatter‑reduce, and sparse linear algebra. Because certain classes (e.g., spectral or label‑propagation methods) vectorize more readily than greedy heuristics, accelerator execution could reorder the efficiency hierarchy reported here.
-Thus the reviewer recommends to assess the vectorizability of each algorithm class and, where feasible, include GPU (or TPU) benchmarks using one of the above frameworks. At minimum, clarify why specific algorithms cannot be ported and quantify the expected speed‑up (or memory) limitations. This will give readers a realistic picture of performance on modern hardware.
+---
 
-To avoid biases, researchers in the field no longer use NMI; instead, they use Adjusted Mutual Information (AMI). The authors should justify their choice of NMI or consider adopting AMI for more robust comparisons. Modularity, known for its problems as an objective function, cannot be used to assess the quality of other methods.
+## Evaluation Metrics
 
+| Metric | Type | Used In |
+|--------|------|---------|
+| AMI / NMI | Partition similarity | Tiers 1, 2, 3 (perturbation) |
+| Modularity | Topological quality | All tiers |
+| GO/KEGG enrichment | Biological coherence | Tier 3 |
+| FFL preservation | Regulatory motif | Tier 3 (SIGNOR, GRN) |
+| Sign coherence | Regulatory consistency | Tier 3 (SIGNOR) |
+| Disease module overlap | Clinical relevance | Tier 3 (BioGRID) |
+| Perturbation NMI | Stability | Tier 3 (GRN) |
 
-Strategy:
-Lets list all alogos and create a table with the following rows:
--  Name
--  Inputs
--  Python Native
--  Optimization Scope (Any SOTA work in this area?)
--  GPU Support
--  CPU Support
--  Scalability
-Also we need clarity on the hpc environment and the hardware details.# ClusterNet
+---
+
+## Biological Networks
+
+| Network | Nodes | Edges | Type | Features |
+|---------|-------|-------|------|----------|
+| SIGNOR | 4,060 | 34,104 | Signed signaling | GO binary |
+| Human GRN | 17,348 | 264,393 | Directed regulatory | Expression PCA-128 |
+| BioGRID | 15,289 | 296,797 | Undirected PPI | GO binary |
+| GTEx (τ=0.9) | 5,694 | 1,436,482 | Weighted co-expression | Expression PCA-128 |
+
+---
+
+## Citation
+
+If you use ClusterNet in your research, please cite:
+
+```bibtex
+@inproceedings{sapna2026clusternet,
+  title     = {ClusterNet: Disentangling When and Why Graph Neural Networks 
+               Surpass Classical Community Detection on Biological Networks},
+  author    = {Sapna, R. and Karthik, Harikeshav and Raman, Karthik},
+  booktitle = {Proceedings of the 60th Hawaii International Conference 
+               on System Sciences (HICSS)},
+  year      = {2026}
+}
+```
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
+
+## Contact
+
+- Karthik Raman — kraman@iitm.ac.in
+- [RamanLab @ IIT Madras](https://github.com/RamanLab)

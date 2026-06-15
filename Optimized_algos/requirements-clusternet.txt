@@ -1,0 +1,47 @@
+# Core Dependencies
+networkx>=2.8
+numpy>=1.21.0
+scipy>=1.7.0
+scikit-learn>=1.0.0
+igraph
+pandas>=1.3.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Algorithm-specific Dependencies
+infomap>=2.0.0
+joblib>=1.0.0
+cdlib>=0.4.0
+python-louvain>=0.15
+leidenalg>=0.8.0
+wurlitzer>=3.0.0
+
+# GNN Dependencies
+# PyTorch and PyG require CUDA-specific wheels. Install manually:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu118
+#   pip install torch_geometric torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.1.0+cu118.html
+# Adjust cu118 / torch version to match your setup.
+torch
+torch_geometric
+torch-scatter
+torch-sparse
+torch-cluster
+
+# Biological Benchmark Dependencies
+gprofiler-official
+goatools
+
+# Optional Dependencies
+
+# For monitoring and profiling
+# psutil>=5.8.0
+
+# For GPU support (install separately based on CUDA version)
+# cupy-cuda11x>=10.0.0
+# cudf-cu11>=22.0.0
+# cugraph-cu11>=22.0.0
+
+# For testing
+# pytest>=7.0.0
+# pytest-cov>=3.0.0
+

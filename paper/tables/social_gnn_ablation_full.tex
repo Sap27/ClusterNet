@@ -1,0 +1,39 @@
+\footnotesize
+\begin{tabular}{llrrr}
+\toprule
+\textbf{GNN} & \textbf{Features} & \textbf{Cora} & \textbf{Citeseer} & \textbf{Amazon Photo} \\
+\midrule
+dmon\_gnn & real & 0.330 & 0.000 & 0.478 \\
+ & structural & 0.295 & 0.051 & 0.348 \\
+ & random & 0.079 & 0.000 & 0.088 \\
+\addlinespace[2pt]
+mincut\_gnn & real & 0.201 & 0.201 & 0.466 \\
+ & structural & 0.191 & 0.093 & 0.368 \\
+ & random & 0.003 & 0.001 & 0.001 \\
+\addlinespace[2pt]
+vgae\_gnn & real & 0.377 & 0.236 & 0.446 \\
+ & structural & 0.262 & 0.087 & 0.400 \\
+ & random & 0.147 & 0.114 & 0.362 \\
+\addlinespace[2pt]
+dgi\_gnn & real & 0.340 & 0.219 & 0.439 \\
+ & structural & 0.128 & 0.075 & 0.346 \\
+ & random & 0.069 & 0.089 & 0.201 \\
+\addlinespace[2pt]
+gcn\_supervised & real & 0.650 & 0.439 & 0.698 \\
+ & structural & 0.552 & 0.185 & 0.678 \\
+ & random & 0.523 & 0.295 & 0.785 \\
+\addlinespace[2pt]
+gat\_supervised & real & 0.667 & 0.464 & 0.855 \\
+ & structural & 0.496 & 0.138 & 0.656 \\
+ & random & 0.567 & 0.316 & 0.820 \\
+\addlinespace[2pt]
+mlp\_kmeans & real & 0.192 & 0.084 & 0.376 \\
+ & structural & 0.244 & 0.067 & 0.368 \\
+ & random & 0.001 & 0.000 & 0.000 \\
+\addlinespace[2pt]
+node2vec\_gnn & real & 0.375 & 0.172 & 0.467 \\
+ & structural & 0.375 & 0.172 & 0.467 \\
+ & random & 0.375 & 0.172 & 0.467 \\
+\bottomrule
+\end{tabular}
+\normalsize

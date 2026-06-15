@@ -1,0 +1,52 @@
+\begin{table*}[t]
+\centering
+\caption{\textbf{Table S1.} Complete LFR accuracy results: mean AMI across 3 realizations at selected mixing parameters $\mu$ ($N{=}1{,}000$). \textbf{Bold}: best in column per paradigm (classical / GNN). Dash: algorithm not run at that $\mu$. \textbf{SBM} and \textbf{Nested SBM}: AMI from local \texttt{accuracy\_results.csv} under \texttt{lfr/accuracy/results/} when the same $\mu$ appears there; otherwise AMI stays GPU; runtime always GPU. Other classical rows: GPU CSV (\texttt{results-clusternet-classical-gpu-new}) plus full-row local supplement where missing on GPU.}
+\label{tab:supp_lfr_accuracy_full}
+\small
+\begin{tabular}{llrrrrrrr}
+\toprule
+\textbf{Algorithm} & \textbf{Family} & \multicolumn{7}{c}{\textbf{AMI at mixing parameter} $\mu$} \\
+ & & $0.1$ & $0.2$ & $0.3$ & $0.4$ & $0.5$ & $0.6$ & $0.7$ \\
+\midrule
+Leiden & Modularity & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & 0.989 & 0.972 & 0.901 & 0.320 \\
+Louvain & Modularity & \textbf{1.000} & \textbf{1.000} & 0.997 & 0.989 & 0.970 & 0.850 & 0.343 \\
+FastGreedy & Modularity & 0.948 & 0.830 & 0.745 & 0.667 & 0.535 & 0.323 & 0.129 \\
+Walktrap & Modularity & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & 0.990 & 0.815 & 0.278 \\
+Label Prop. & Propagation & \textbf{1.000} & \textbf{1.000} & 0.997 & 0.987 & 0.947 & 0.000 & 0.000 \\
+Spinglass & Propagation & 0.965 & 0.969 & 0.949 & 0.958 & 0.939 & 0.888 & \textbf{0.462} \\
+SCAN & Propagation & 0.920 & 0.684 & 0.340 & 0.055 & 0.003 & -- & -- \\
+Spectral & Spectral & 0.926 & 0.930 & 0.907 & 0.911 & 0.824 & 0.645 & 0.248 \\
+Leading Eigen. & Spectral & 0.633 & 0.504 & 0.389 & 0.481 & 0.292 & 0.215 & 0.115 \\
+SBM & Statistical & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & 0.996 & 0.966 & 0.000 \\
+Nested SBM & Statistical & 0.974 & 0.996 & \textbf{1.000} & \textbf{1.000} & \textbf{0.998} & \textbf{0.969} & 0.000 \\
+EM & Statistical & 0.499 & 0.432 & 0.347 & 0.172 & 0.145 & 0.048 & 0.027 \\
+RB-Pots & Resolution & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & 0.989 & 0.969 & 0.891 & 0.342 \\
+RBer-Pots & Resolution & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & 0.998 & 0.967 & 0.895 & 0.185 \\
+CPM & Resolution & \textbf{1.000} & 0.996 & 0.989 & 0.955 & 0.882 & 0.781 & 0.386 \\
+Async Fluid & Density & 0.914 & 0.938 & 0.927 & 0.899 & 0.853 & 0.528 & 0.199 \\
+Surprise & Density & \textbf{1.000} & \textbf{1.000} & \textbf{0.999} & 0.993 & 0.955 & 0.840 & 0.396 \\
+Angel & Overlapping & 0.981 & 0.915 & 0.858 & 0.794 & 0.652 & 0.422 & 0.210 \\
+Demon & Overlapping & 0.972 & 0.745 & 0.591 & 0.399 & 0.328 & 0.197 & 0.125 \\
+$k$-Clique & Overlapping & 0.962 & 0.719 & 0.293 & 0.060 & 0.022 & 0.022 & 0.019 \\
+SCORE & DREAM & 0.831 & 0.889 & 0.863 & 0.875 & 0.843 & 0.702 & 0.287 \\
+TeamCS & DREAM & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & 0.947 & 0.000 \\
+BigS2 & DREAM & 0.632 & 0.620 & 0.565 & 0.482 & 0.368 & 0.254 & 0.067 \\
+CSBIO-IITM2 & DREAM & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & 0.997 & 0.933 & 0.334 \\
+AGDL & Other & \textbf{1.000} & 0.000 & 0.667 & 0.000 & 0.000 & 0.000 & 0.000 \\
+DER & Other & 0.332 & 0.339 & 0.333 & 0.318 & 0.265 & 0.188 & 0.053 \\
+GDMP2 & Other & 0.014 & 0.025 & 0.163 & 0.145 & 0.059 & 0.041 & 0.005 \\
+SimNet & Other & 0.961 & 0.980 & 0.943 & 0.932 & 0.942 & 0.800 & 0.288 \\
+SVT & Other & 0.905 & 0.904 & 0.905 & 0.876 & 0.785 & 0.588 & 0.163 \\
+Tusk & Other & 0.990 & 0.977 & 0.961 & 0.956 & 0.947 & 0.840 & 0.437 \\
+\midrule
+DMoN & Diff.\ pool & 0.811 & 0.709 & 0.602 & 0.351 & 0.186 & 0.071 & 0.042 \\
+MinCutPool & Diff.\ pool & 0.123 & 0.080 & 0.036 & 0.070 & 0.022 & 0.011 & 0.007 \\
+VGAE+KM & Repr.\ learn. & 0.876 & 0.543 & 0.407 & 0.274 & 0.162 & 0.087 & 0.026 \\
+DGI+KM & Repr.\ learn. & 0.536 & 0.315 & 0.221 & 0.151 & 0.058 & 0.035 & 0.017 \\
+GCN (20\%) & Semi-sup. & 0.384 & 0.287 & 0.225 & 0.208 & 0.039 & 0.045 & 0.013 \\
+GAT (20\%) & Semi-sup. & 0.667 & 0.627 & 0.482 & 0.322 & 0.121 & 0.041 & 0.011 \\
+MLP+KM & Baseline & 0.018 & 0.006 & 0.007 & 0.012 & 0.012 & 0.007 & 0.001 \\
+Node2Vec+KM & Baseline & \textbf{0.997} & \textbf{0.989} & \textbf{0.987} & \textbf{0.991} & \textbf{0.977} & \textbf{0.808} & \textbf{0.198} \\
+\bottomrule
+\end{tabular}
+\end{table*}
